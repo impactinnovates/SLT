@@ -338,4 +338,6 @@ def _row_response(item_id, ok):
 
 
 if __name__ == "__main__":
-    app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=True)
+    # debug=True gives readable in-browser tracebacks; use_reloader=False keeps a
+    # single process so run_service.py can track/stop it by PID reliably.
+    app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=True, use_reloader=False)
