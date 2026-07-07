@@ -2,7 +2,7 @@
 {% import "_macros.html" as m %}
 {% block content %}
 <h1>SLT Dashboard</h1>
-<div class="muted">Board-level strategic initiatives</div>
+<div class="muted">{{ stats.total }} strategic initiatives · {{ task_total }} tasks rolling up beneath them</div>
 
 {{ m.filter_bar(options, args) }}
 
@@ -36,23 +36,10 @@
   <div class="panel"><div class="chart" data-fig="{{ charts.cost }}"></div></div>
 </div>
 
-<h2>Needs Attention <span class="muted">({{ attention|length }} Behind / At Risk / Blocked)</span></h2>
+<h2>Needs Attention <span class="muted">({{ attention|length }} — initiative status or a task is Behind / At Risk / Blocked)</span></h2>
 {% if attention %}
-  {% for r in attention %}{{ m.initiative_card(r, user, status_colors, status_icons) }}{% endfor %}
+  {% for r in attention %}{{ m.initiative_card(r, user, status_colors, status_icons, tasks_by_parent.get(r.id|string, []), leaders, statuses, task_statuses) }}{% endfor %}
 {% else %}
-  <div class="panel muted" style="padding:14px">Nothing currently behind, at risk, or blocked.</div>
-{% endif %}
-
-{% if recent %}
-<h2>Recently Updated</h2>
-<table>
-  <thead><tr><th>Initiative</th><th>Status</th><th class="num">% Complete</th><th>Owner</th><th>Last Updated By</th></tr></thead>
-  <tbody>
-  {% for r in recent %}
-    <tr><td>{{ r.name }}</td><td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
-        <td class="num">{{ (r.pct_complete or 0)|round|int }}%</td><td>{{ r.owner }}</td><td>{{ r.last_updated_by }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+  <div class="panel muted" style="padding:14px">Nothing currently behind, at risk, or blocked - at the initiative or task level.</div>
 {% endif %}
 {% endblock %}

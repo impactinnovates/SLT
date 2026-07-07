@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="boardhead">
+  <div>
+    <h1>Strategic Initiatives - Board Report</h1>
+    <div class="muted">Impact Environmental Group · Generated {{ generated }}</div>
+  </div>
+  <button class="btn primary noprint" onclick="window.print()">Print / Save PDF</button>
+</div>
+
+<div class="kpis" style="grid-template-columns:repeat(6,1fr)">
+  <div class="kpi"><div class="lab">Initiatives</div><div class="n">{{ stats.total }}</div></div>
+  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">On Track</div><div class="n">{{ stats.on_track }}</div></div>
+  <div class="kpi" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ stats.at_risk }}</div></div>
+  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Behind</div><div class="n">{{ stats.behind }}</div></div>
+  <div class="kpi" style="border-left-color:#7c3aed"><div class="lab">Blocked</div><div class="n">{{ stats.blocked }}</div></div>
+  <div class="kpi" style="border-left-color:#0369a1"><div class="lab">Completed</div><div class="n">{{ stats.completed }}</div></div>
+</div>
+
+<div class="kpis fin">
+  <div class="kpi"><div class="lab">Forecasted EBITDA</div><div class="n">{{ stats.total_forecasted_ebitda|currency }}</div>
+    <div class="sub">{{ stats.total_realized_ebitda|currency }} realized ({{ stats.ebitda_pct }}%)</div></div>
+  <div class="kpi"><div class="lab">Forecasted Revenue</div><div class="n">{{ stats.total_forecasted_rev|currency }}</div>
+    <div class="sub">{{ stats.total_realized_rev|currency }} realized ({{ stats.rev_pct }}%)</div></div>
+  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Needs Attention</div><div class="n">{{ attention|length }}</div>
+    <div class="sub">initiative or task at risk</div></div>
+  <div class="kpi"><div class="lab">EBITDA Realized</div><div class="n">{{ stats.ebitda_pct }}%</div></div>
+</div>
+
+{% if attention %}
+<h2>Attention Required</h2>
+<table class="boardtbl">
+  <thead><tr><th>Initiative</th><th>Owner</th><th>Status</th><th class="num">%</th><th>Risk</th><th>Next Action</th></tr></thead>
+  <tbody>
+  {% for r in attention %}
+    <tr>
+      <td><b>{{ r.name }}</b></td><td>{{ r.owner }}</td>
+      <td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
+      <td class="num">{{ (r.effective_pct if r.effective_pct is not none else (r.pct_complete or 0))|round|int }}%</td>
+      <td>{{ r.risk_reason or (r.status if r.status in ('Behind','At Risk','Blocked') else '-') }}</td>
+      <td>{{ r.next_action if r.next_action not in ('nan','None') else '-' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>All Initiatives</h2>
+{% for r in rows %}
+  {% set color = status_colors.get(r.status,'#94a3b8') %}
+  {% set pct = (r.effective_pct if r.effective_pct is not none else (r.pct_complete or 0))|float %}
+  <div class="bcard" style="border-left-color:{{ color }}">
+    <div class="bcard-head">
+      <div class="bcard-title">{{ r.name }}</div>
+      <div class="pill" style="background:{{ color }}18;color:{{ color }};border-color:{{ color }}44">
+        {{ status_icons.get(r.status,'') }} {{ r.status }} · {{ pct|round|int }}%</div>
+    </div>
+    <div class="bcard-meta">
+      Sponsor {{ r.sponsor or '-' }} · Owner {{ r.owner or '-' }} · Region {{ r.region or '-' }} · Target {{ r.target_completion|date }}
+      {% if r.task_count %} · {{ r.task_count }} tasks ({{ r.tasks_done }} done){% endif %}
+    </div>
+    {% if r.next_action and r.next_action not in ('nan','None') %}<div class="bcard-na"><b>Next:</b> {{ r.next_action }}</div>{% endif %}
+    {% if r.blockers and r.blockers not in ('nan','None') %}<div class="bcard-bl"><b>Blocker:</b> {{ r.blockers }}</div>{% endif %}
+    {% if r.forecasted_ebitda or r.forecasted_revenue %}
+    <div class="bcard-fin">
+      EBITDA {{ r.realized_ebitda|currency }} / {{ r.forecasted_ebitda|currency }} ·
+      Revenue {{ r.realized_revenue|currency }} / {{ r.forecasted_revenue|currency }}
+      {% if r.ebitda_pace_label %} · pace: {{ r.ebitda_pace_label }}{% endif %}
+    </div>
+    {% endif %}
+    {% set kids = tasks_by_parent.get(r.id|string, []) %}
+    {% if kids %}
+    <div class="bcard-tasks">
+      {% for t in kids %}<span class="btask">{{ status_icons.get(t.status,'') }} {{ t.name }} ({{ (t.pct_complete or 0)|round|int }}%)</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .boardhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .bcard{background:var(--card);border:1px solid var(--border);border-left:4px solid #ccc;
+         border-radius:8px;padding:10px 14px;margin:8px 0;box-shadow:var(--shadow);break-inside:avoid}
+  .bcard-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .bcard-title{font-weight:800;font-size:15px;color:var(--text)}
+  .bcard-meta{font-size:12px;color:var(--muted);margin:4px 0}
+  .bcard-na{font-size:13px;margin:3px 0}
+  .bcard-bl{font-size:13px;margin:3px 0;color:#a32b2d}
+  .bcard-fin{font-size:12px;color:var(--muted);margin:3px 0;font-variant-numeric:tabular-nums}
+  .bcard-tasks{margin-top:5px;display:flex;flex-wrap:wrap;gap:6px}
+  .btask{font-size:11px;background:var(--panelHi);border:1px solid var(--line2);border-radius:5px;padding:2px 7px}
+  .boardtbl td{font-size:12.5px}
+  @media print {
+    .ieg-nav,.noprint{display:none !important}
+    main{margin:0;max-width:none;padding:0}
+    body{background:#fff;font-size:12px}
+    .kpi,.bcard,table{box-shadow:none}
+    a[href]:after{content:""}
+  }
+</style>
+{% endblock %}

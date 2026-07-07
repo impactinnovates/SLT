@@ -1,4 +1,4 @@
-{# ── Global filter bar (GET form; multi-select mirrors the old filter bar) ── #}
+{# ── Global filter bar (GET form) ── #}
 {% macro filter_bar(options, args, sort=None) %}
 <form class="filters" method="get">
   <div><label>Sponsor</label>
@@ -35,10 +35,42 @@
 {% endmacro %}
 
 
-{# ── One expandable, inline-editable initiative ── #}
-{% macro initiative_card(r, user, status_colors, status_icons) %}
+{# ── Roll-up summary chip for an initiative ── #}
+{% macro rollup_chip(r) %}
+  {% if r.task_count and r.task_count > 0 %}
+    <span class="pill" style="background:var(--accent-bg);color:var(--accent-dark);border-color:#bcd9ec">
+      {{ r.task_count }} task{{ 's' if r.task_count != 1 }} · {{ r.tasks_done }} done{% if r.rollup_pct is not none %} · rolled {{ r.rollup_pct|round|int }}%{% endif %}</span>
+    {% if r.rollup_risk %}
+      <span class="pill" style="background:#fdecec;color:#a32b2d;border-color:#f3c0c1" title="{{ r.risk_reason }}">⚠ task risk</span>
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+
+{# ── One child task line, with inline status/progress update ── #}
+{% macro task_line(t, status_colors, status_icons, task_statuses, editable=true) %}
+{% set c = status_colors.get(t.status, '#94a3b8') %}
+<div class="taskline" style="border-left-color:{{ c }}">
+  <span class="ti">{{ status_icons.get(t.status,'⚪') }} <b>{{ t.name }}</b>
+    <span class="muted">· {{ t.owner or 'unassigned' }}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span></span>
+  {% if editable %}
+  <form class="tinline" hx-post="/api/task/{{ t.id }}" hx-swap="none">
+    <select name="status">{% for s in task_statuses %}<option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}</select>
+    <input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}" style="width:58px">
+    <input name="next_action" placeholder="next action" value="{{ t.next_action if t.next_action not in ('nan','None') else '' }}" style="width:150px">
+    <button class="btn primary" type="submit">Save</button>
+  </form>
+  {% else %}
+  <span class="pill" style="background:{{ c }}18;color:{{ c }};border-color:{{ c }}44">{{ t.status }} · {{ (t.pct_complete or 0)|round|int }}%</span>
+  {% endif %}
+</div>
+{% endmacro %}
+
+
+{# ── One expandable initiative: detail + child tasks + roll-up + add-task ── #}
+{% macro initiative_card(r, user, status_colors, status_icons, children=[], leaders=[], statuses=[], task_statuses=[]) %}
 {% set color = status_colors.get(r.status, '#94a3b8') %}
-{% set pct = (r.pct_complete or 0)|float %}
+{% set pct = (r.effective_pct if r.effective_pct is not none else (r.pct_complete or 0))|float %}
 <details class="init" style="border-left-color:{{ color }}">
   <summary>
     <span>{{ status_icons.get(r.status, '⚪') }}</span>
@@ -47,9 +79,10 @@
     <span class="meta">{{ r.owner or '-' }} · {{ pct|round|int }}% · {{ r.target_completion|date }}</span>
   </summary>
   <div class="body">
-    <div style="margin:8px 0">
+    <div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <span class="pill" style="background:{{ color }}18;color:{{ color }};border-color:{{ color }}44">
         {{ status_icons.get(r.status,'⚪') }} {{ r.status }}</span>
+      {{ rollup_chip(r) }}
     </div>
     {% if r.next_action and r.next_action not in ('nan','None') %}
       <div class="callout"><div class="h">Next Action</div>{{ r.next_action }}</div>{% endif %}
@@ -59,7 +92,6 @@
       <span><b>Sponsor:</b> {{ r.sponsor or '-' }}</span>
       <span><b>Region:</b> {{ r.region or '-' }}</span>
       <span><b>Priority:</b> P{{ r.priority or '-' }}</span>
-      <span><b>Start:</b> {{ r.start_date|date }}</span>
       <span><b>Target:</b> {{ r.target_completion|date }}</span>
     </div>
     {% if user.role == 'SLT' and (r.forecasted_ebitda or r.forecasted_revenue or r.forecasted_cost) %}
@@ -73,52 +105,61 @@
     </div>
     {% endif %}
 
-    {% if user.role in ('SLT','PM') %}
-    <details style="margin-top:6px">
-      <summary class="btn ghost" style="display:inline-block">Edit</summary>
+    {# ── Tasks under this initiative ── #}
+    <div class="tasks">
+      <div class="subt">Tasks ({{ children|length }})</div>
+      {% for t in children %}{{ task_line(t, status_colors, status_icons, task_statuses) }}{% else %}
+        <div class="muted" style="padding:4px 0">No tasks yet. Break this initiative into trackable tasks below.</div>
+      {% endfor %}
+      {% if user.role in ('SLT','Leader') %}
+      <details class="addtask">
+        <summary class="btn ghost" style="display:inline-block;margin-top:6px">+ Add task</summary>
+        <form class="editform" hx-post="/api/initiative/{{ r.id }}/task"
+              hx-target="closest details.init" hx-swap="outerHTML">
+          <div class="frow">
+            <div class="fld" style="flex:2"><label>Task name</label><input name="name" required style="width:100%"></div>
+            <div class="fld"><label>Assign to</label>
+              <select name="owner">{% for l in leaders %}<option>{{ l }}</option>{% endfor %}</select></div>
+            <div class="fld"><label>Target</label><input type="date" name="target_completion"></div>
+          </div>
+          <div class="frow">
+            <div class="fld"><label>Status</label>
+              <select name="status">{% for s in task_statuses %}<option>{{ s }}</option>{% endfor %}</select></div>
+            <div class="fld" style="flex:2"><label>Next action</label><input name="next_action" style="width:100%"></div>
+          </div>
+          <button class="btn primary" type="submit">Add task</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+
+    {% if user.role == 'SLT' %}
+    <details style="margin-top:8px">
+      <summary class="btn ghost" style="display:inline-block">Edit initiative</summary>
       <form class="editform" hx-post="/api/initiative/{{ r.id }}"
             hx-target="closest details.init" hx-swap="outerHTML">
         <input type="hidden" name="sp_id" value="{{ r.sp_id or '' }}">
         <div class="frow">
-          <div class="fld" style="flex:2"><label>Name</label>
-            <input name="name" value="{{ r.name }}" style="width:100%"></div>
+          <div class="fld" style="flex:2"><label>Name</label><input name="name" value="{{ r.name }}" style="width:100%"></div>
           <div class="fld"><label>Status</label>
-            <select name="status">
-              {% for s in ['On Track','At Risk','Behind','Blocked','Not Started','Completed'] %}
-                <option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}
-            </select></div>
-          <div class="fld"><label>% Complete</label>
-            <input type="number" name="pct_complete" min="0" max="100" value="{{ pct|round|int }}"></div>
+            <select name="status">{% for s in statuses %}<option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+          <div class="fld"><label>% Complete (override)</label>
+            <input type="number" name="pct_complete" min="0" max="100" value="{{ (r.pct_complete or 0)|round|int }}"></div>
         </div>
         <div class="frow">
-          <div class="fld"><label>Next Action</label>
-            <textarea name="next_action" rows="2">{{ r.next_action if r.next_action not in ('nan','None') else '' }}</textarea></div>
-          <div class="fld"><label>Blockers</label>
-            <textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
+          <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ r.next_action if r.next_action not in ('nan','None') else '' }}</textarea></div>
+          <div class="fld"><label>Blockers</label><textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
         </div>
-        <div class="frow">
-          <div class="fld"><label>Completed Actions</label>
-            <textarea name="completed_actions" rows="2">{{ r.completed_actions if r.completed_actions not in ('nan','None') else '' }}</textarea></div>
-        </div>
-        {% if user.role == 'SLT' %}
         <div class="frow">
           <div class="fld"><label>Realized Revenue</label><input name="realized_revenue" value="{{ r.realized_revenue or '' }}"></div>
           <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda or '' }}"></div>
-          <div class="fld"><label>Realized Cost</label><input name="realized_cost" value="{{ r.realized_cost or '' }}"></div>
-        </div>
-        <div class="frow">
-          <div class="fld"><label>Forecast Revenue</label><input name="forecasted_revenue" value="{{ r.forecasted_revenue or '' }}"></div>
           <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda" value="{{ r.forecasted_ebitda or '' }}"></div>
-          <div class="fld"><label>Forecast Cost</label><input name="forecasted_cost" value="{{ r.forecasted_cost or '' }}"></div>
         </div>
-        {% endif %}
         <button class="btn primary" type="submit">Save Changes</button>
-        {% if user.role == 'SLT' %}
         <button class="btn danger" type="button"
                 hx-post="/api/initiative/{{ r.id }}/delete"
                 hx-target="closest details.init" hx-swap="outerHTML"
-                hx-confirm="Delete this initiative? (only works if you are its sponsor)">Delete</button>
-        {% endif %}
+                hx-confirm="Delete this initiative? (sponsor-only)">Delete</button>
       </form>
     </details>
     {% endif %}

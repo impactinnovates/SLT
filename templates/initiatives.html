@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
 {% block content %}
-<h1>All Initiatives</h1>
-<div class="muted">Showing {{ shown }} of {{ total }} initiatives</div>
+<h1>Initiatives</h1>
+<div class="muted">Showing {{ shown }} of {{ total }} SLT initiatives. Expand any initiative to see and add its tasks.</div>
 
 {{ m.filter_bar(options, args, sort=sort) }}
 
-{% for g in groups %}
-  <h2>{{ g.label }} <span class="muted">({{ g.count }})</span></h2>
-  {% for r in g.rows %}{{ m.initiative_card(r, user, status_colors, status_icons) }}{% endfor %}
+{% for r in rows %}
+  {{ m.initiative_card(r, user, status_colors, status_icons, tasks_by_parent.get(r.id|string, []), leaders, statuses, task_statuses) }}
 {% else %}
   <div class="panel muted" style="padding:14px">No initiatives match these filters.</div>
 {% endfor %}

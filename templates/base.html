@@ -74,6 +74,15 @@
     .editform .frow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
     .editform .fld{flex:1;min-width:150px}
     .editform .fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}
+    /* tasks under an initiative */
+    .tasks{margin-top:10px;border-top:1px dashed var(--line2);padding-top:8px}
+    .subt{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin:2px 0 5px}
+    .taskline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel2);
+              border:1px solid var(--line2);border-left:3px solid #ccc;border-radius:6px;padding:5px 10px;margin:3px 0}
+    .taskline .ti{font-size:13px}
+    .tinline{display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap}
+    .tinline select,.tinline input{font-size:12px;padding:4px 7px}
+    .addtask summary{list-style:none} .addtask summary::-webkit-details-marker{display:none}
     .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid transparent}
     .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
     .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
@@ -89,17 +98,21 @@
     </a>
     {% if user and user.role == 'SLT' %}
       <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
-      <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">All Initiatives</a>
+      <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives</a>
       <a class="ieg-link {{ 'active' if nav=='financial' }}" href="/financial">Financial Pacing</a>
       <a class="ieg-link {{ 'active' if nav=='timeline' }}" href="/timeline">Timeline</a>
+      <a class="ieg-link {{ 'active' if nav=='board' }}" href="/board">Board Report</a>
       <a class="ieg-link {{ 'active' if nav=='new' }}" href="/new">+ New</a>
-    {% elif user and user.role == 'PM' %}
-      <a class="ieg-link {{ 'active' if nav=='pm_initiatives' }}" href="/pm/initiatives">My Initiatives</a>
-      <a class="ieg-link {{ 'active' if nav=='pm_subtasks' }}" href="/pm/subtasks">Sub-Tasks</a>
     {% else %}
-      <a class="ieg-link {{ 'active' if nav=='tm_tasks' }}" href="/tm/tasks">My Tasks</a>
+      <a class="ieg-link {{ 'active' if nav=='tasks' }}" href="/tasks">My Tasks</a>
     {% endif %}
     <span class="ieg-spacer"></span>
+    {% if not auth_enabled %}
+      <span style="color:rgba(255,255,255,.6);font-size:11px">preview:</span>
+      {% for r in ['SLT','Leader','Member'] %}
+        <a class="ieg-link {{ 'active' if user and user.role==r }}" href="?as={{ r }}"
+           style="padding:5px 8px;font-size:12px">{{ r }}</a>{% endfor %}
+    {% endif %}
     <span class="src {{ source_label }}" title="Data source">
       {{ 'LIVE LIST' if source_label=='live' else 'LOCAL CSV' }}</span>
     {% if user %}

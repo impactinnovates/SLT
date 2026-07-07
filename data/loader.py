@@ -21,8 +21,8 @@ import pandas as pd
 
 from config import settings
 from data import source
-from data.models import (CSV_MAP, INTERNAL_TO_GRAPH, parse_currency, parse_pct,
-                         parse_date)
+from data.models import (CSV_MAP, INTERNAL_TO_GRAPH, TYPE_TASK, TYPE_INITIATIVE,
+                         parse_currency, parse_pct, parse_date)
 
 # Simple in-process cache so a single request doesn't hit Graph repeatedly.
 _CACHE: dict = {}
@@ -86,6 +86,18 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
         df["status"] = df["status"].str.strip()
     if "id" in df.columns:
         df["id"] = df["id"].astype(str)
+
+    # Hierarchy columns must always exist so the roll-up is source-agnostic.
+    if "task_type" not in df.columns:
+        df["task_type"] = TYPE_INITIATIVE          # untyped legacy rows = Initiative
+    else:
+        df["task_type"] = df["task_type"].replace("", TYPE_INITIATIVE).fillna(TYPE_INITIATIVE)
+    if "parent_id" not in df.columns:
+        df["parent_id"] = ""
+    # Normalize parent_id to a clean string id ("26.0" -> "26", NaN -> "").
+    df["parent_id"] = (df["parent_id"].fillna("").astype(str)
+                       .str.replace(r"\.0$", "", regex=True).str.strip()
+                       .replace({"nan": "", "None": ""}))
     return df
 
 
@@ -165,6 +177,20 @@ def create_initiative(fields: dict) -> bool:
         return True
     except Exception:
         return False
+
+
+def create_task(parent_id, fields: dict, owner: str, creator: str) -> bool:
+    """Create a Task row under a parent Initiative. Used by SLT and by Leaders
+    assigning work to their team. Stores task_type=Task + parent_id so it rolls
+    up to the parent."""
+    payload = {
+        **fields,
+        "task_type":  TYPE_TASK,
+        "parent_id":  str(parent_id),
+        "owner":      owner,
+        "created_by": creator,
+    }
+    return create_initiative(payload)
 
 
 def delete_initiative(item_id: str, sp_id=None) -> bool:

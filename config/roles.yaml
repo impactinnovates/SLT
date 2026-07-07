@@ -1,11 +1,16 @@
 # ─────────────────────────────────────────────────────────────
-#  IEG Strategic Initiatives — Role Configuration
-#  Edit this file to manage user roles. No IT ticket needed.
+#  IEG Strategic Initiatives - Role Configuration
+#  Edit this file to manage user access. Matched on the signed-in
+#  Microsoft identity (display name or email). No IT ticket needed.
 #
 #  Roles:
-#    SLT  - Senior Leadership Team: full access, all financials
-#    PM   - Plant Manager: regional initiatives, no financials
-#    TM   - Team Member: assigned sub-tasks only
+#    SLT     - Senior Leadership: all initiatives + tasks + financials,
+#              board report, create/assign, delete (if also a sponsor).
+#    Leader  - Plant / Department leader: sees ONLY the tasks they own or
+#              assigned to their team. Never sees SLT initiatives or financials.
+#              Can create/assign sub-tasks to their people.
+#    Member  - Team member: sees ONLY tasks assigned to them; updates
+#              status / progress.
 # ─────────────────────────────────────────────────────────────
 
 users:
@@ -17,26 +22,24 @@ users:
   Ty Rhoad:            SLT
   Brian Charles:       SLT
 
-  # ── Plant Managers ──
-  Scott Myers:         PM
-  Bruce Kohel:         PM
-  Paul Reidy:          PM
-  Pete Dickson:        PM
-  Don Domanus:         PM
-  Eric Holmgren:       PM
-  Andrew Ekins:        PM
-  Matt Throumoulos:    PM
-  Mike Deckard:        PM
-  Yovani Arce:         PM
-  Lisa Bull:           PM
+  # ── Plant / Department Leaders ──
+  Scott Myers:         Leader
+  Bruce Kohel:         Leader
+  Paul Reidy:          Leader
+  Pete Dickson:        Leader
+  Don Domanus:         Leader
+  Eric Holmgren:       Leader
+  Andrew Ekins:        Leader
+  Matt Throumoulos:    Leader
+  Mike Deckard:        Leader
+  Yovani Arce:         Leader
+  Lisa Bull:           Leader
+  Heather Monaco:      Leader
+  Katie Follman:       Leader
+  Ruchita Bhagat:      Leader
+  Curt Conley:         Leader
 
-  # ── Finance / Support ──
-  Heather Monaco:      PM
-  Katie Follman:       PM
-  Ruchita Bhagat:      PM
-  Curt Conley:         PM
-
-# Sponsors — only these users can delete initiatives they own
+# Sponsors - only these users can delete initiatives they own
 sponsors:
   - Chad Abrahamson
   - Brian Beth
@@ -48,37 +51,31 @@ sponsors:
 # Role permissions matrix
 permissions:
   SLT:
-    view_bod:           true
-    view_sm:            true
-    view_financials:    true
-    view_all_regions:   true
+    see_initiatives:    true
+    see_financials:     true
+    see_board_report:   true
     create_initiative:  true
-    create_subtask:     true
-    edit_own:           true
+    create_task:        true
+    assign_task:        true
     edit_any:           true
-    delete_own:         true   # only if also sponsor
-    delete_any:         false
+    delete_own:         true   # only if also a sponsor
 
-  PM:
-    view_bod:           false
-    view_sm:            true
-    view_financials:    false
-    view_all_regions:   false  # filtered to own region
+  Leader:
+    see_initiatives:    false  # HARD wall - never sees SLT initiatives
+    see_financials:     false
+    see_board_report:   false
     create_initiative:  false
-    create_subtask:     true   # for TM layer only
-    edit_own:           true
-    edit_any:           false
+    create_task:        true   # sub-tasks for their own team only
+    assign_task:        true
+    edit_any:           false  # only their own / their team's tasks
     delete_own:         false
-    delete_any:         false
 
-  TM:
-    view_bod:           false
-    view_sm:            false
-    view_financials:    false
-    view_all_regions:   false
+  Member:
+    see_initiatives:    false
+    see_financials:     false
+    see_board_report:   false
     create_initiative:  false
-    create_subtask:     false
-    edit_own:           true   # update status/results only
-    edit_any:           false
+    create_task:        false
+    assign_task:        false
+    edit_any:           false  # updates status/progress on own tasks only
     delete_own:         false
-    delete_any:         false

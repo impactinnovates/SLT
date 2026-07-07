@@ -2,8 +2,22 @@
 
 Internal dashboard for SLT strategic initiatives. Flask + Jinja2 + HTMX, matching
 the DemandPulse / SCP / Financial Dashboard stack. Microsoft Entra sign-in, role
-layers (SLT / PM / TM), and a live connection to the Strategic Initiatives
+layers (SLT / Leader / Member), and a live connection to the Strategic Initiatives
 SharePoint List (with a local CSV fallback so it runs with zero cloud setup).
+
+## Model
+
+A two-level hierarchy in one List (`Task/Initiative` field), with roll-up:
+
+```
+Initiative  (SLT-owned, BOD-reported, financials)
+   └── Task (assigned to a Leader; Parent ID -> initiative)  rolls up %/risk to the parent
+          └── sub-task (a Leader may assign to their Members)
+```
+
+Roll-up: a parent shows rolled-up % complete and a risk flag if any child task is
+Behind/Blocked; SLT can override the parent %. See `LIST_CHANGES.md` for the one
+List column this needs (`Parent ID`).
 
 ## Quick start (local dev)
 
@@ -60,9 +74,13 @@ Edit `config/roles.yaml` — matched against the signed-in Microsoft identity
 
 | Role | Access |
 |------|--------|
-| SLT  | All initiatives + financials, create/edit, delete (if sponsor) |
-| PM   | Site Manufacturing initiatives, no financials, manage TM sub-tasks |
-| TM   | Only their assigned sub-tasks, status/progress updates |
+| SLT    | All initiatives + tasks + financials + board report; create/assign; delete (if sponsor) |
+| Leader | ONLY tasks they own or assigned to their team; never sees initiatives or financials; can create/assign sub-tasks |
+| Member | ONLY tasks assigned to them; status/progress updates |
+
+Visibility is enforced server-side - Leader/Member requests can never load
+initiatives (verified: they get 403 on every SLT route). Locally (no SSO) use
+`?as=SLT|Leader|Member` to preview each layer.
 
 ## Layout
 
