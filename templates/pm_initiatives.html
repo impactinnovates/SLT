@@ -1,9 +1,0 @@
-{% extends "base.html" %}
-{% import "_macros.html" as m %}
-{% block content %}
-<h1>My Initiatives</h1>
-<div class="muted">Site Manufacturing initiatives ({{ shown }})</div>
-{{ m.filter_bar(options, args, sort=args.get('sort','pri_sev')) }}
-{% for r in rows %}{{ m.initiative_card(r, user, status_colors, status_icons) }}
-{% else %}<div class="panel muted" style="padding:14px">No initiatives match these filters.</div>{% endfor %}
-{% endblock %}

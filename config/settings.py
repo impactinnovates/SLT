@@ -121,7 +121,7 @@ def get_user_role(*identifiers) -> str:
     for ident in identifiers:
         if ident and str(ident).lower() in lut:
             return lut[str(ident).lower()]
-    return "TM"
+    return "Member"
 
 
 def is_known_user(*identifiers) -> bool:

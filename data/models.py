@@ -41,7 +41,14 @@ CSV_MAP = {
     "ID":                        "id",
     "Created By":                "created_by",
     "Modified By":               "modified_by",
+    "Parent ID":                 "parent_id",
 }
+
+# Row type (the List's "Task/Initiative" field -> task_type). Initiatives are the
+# SLT-owned parents; Tasks are children assigned to Leaders and roll up to a parent
+# via parent_id.
+TYPE_INITIATIVE = "Initiative"
+TYPE_TASK       = "Task"
 
 # SharePoint Graph field names → internal
 GRAPH_MAP = {
@@ -69,6 +76,8 @@ GRAPH_MAP = {
     "RealizedEBITDAToDate":      "realized_ebitda",
     "BenefitStartDate":          "benefit_start_date",
     "ProjectLink":               "project_link",
+    "ParentID":                  "parent_id",   # reconcile internal name via probe
+    "TaskInitiative":            "task_type",    # reconcile internal name via probe
     "id":                        "sp_id",   # SharePoint item ID for write-back
 }
 

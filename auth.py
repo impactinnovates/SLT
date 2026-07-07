@@ -45,6 +45,20 @@ DEV_USER = {
     "oid":   "local-dev",
 }
 
+# Dev-only role preview: in local (no-SSO) mode, ?as=SLT|Leader|Member switches
+# the dev user's role so you can see each layer. Ignored entirely when SSO is on.
+_DEV_ROLES = {"SLT", "Leader", "Member"}
+
+
+def _dev_user():
+    from flask import request, session
+    role = request.args.get("as")
+    if role in _DEV_ROLES:
+        session["dev_role"] = role
+    role = session.get("dev_role", DEV_USER["role"])
+    name = DEV_USER["name"] if role == "SLT" else f"Dev {role}"
+    return {**DEV_USER, "role": role, "name": name}
+
 
 def msal_app():
     return msal.ConfidentialClientApplication(
@@ -58,7 +72,7 @@ def msal_app():
 def current_user() -> dict | None:
     """The signed-in user dict {name, email, role, oid}, or None."""
     if not AUTH_ENABLED:
-        return DEV_USER
+        return _dev_user()
     return session.get("user")
 
 
@@ -71,7 +85,7 @@ def require_login():
     """App-wide gate. Public: /auth/* and /healthz. Everything else needs a
     signed-in session; API calls get 401 instead of a redirect."""
     if not AUTH_ENABLED:
-        g.user = DEV_USER
+        g.user = _dev_user()
         return
     if request.path.startswith("/auth/") or request.path == "/healthz":
         return
