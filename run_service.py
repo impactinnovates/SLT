@@ -20,6 +20,12 @@ import signal
 import json
 from pathlib import Path
 
+# Windows consoles default to cp1252 and can't encode the status emojis below.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 PID_FILE = Path(__file__).parent / ".slt_pid"
 LOG_FILE = Path(__file__).parent / "logs" / "slt_app.log"
 APP_FILE = Path(__file__).parent / "app.py"
@@ -34,16 +40,28 @@ def get_port():
     return "8502"
 
 
+def _alive(pid: int) -> bool:
+    """Reliable liveness check. On Windows os.kill(pid, 0) does NOT work as a
+    probe (it maps to TerminateProcess), so use tasklist there."""
+    if sys.platform == "win32":
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                             capture_output=True, text=True).stdout
+        return str(pid) in out
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
 def start():
     if PID_FILE.exists():
         pid = int(PID_FILE.read_text())
-        try:
-            os.kill(pid, 0)
+        if _alive(pid):
             print(f"✅ SLT app already running (PID {pid})")
             print(f"   Open: http://localhost:{get_port()}")
             return
-        except OSError:
-            PID_FILE.unlink()
+        PID_FILE.unlink()
 
     LOG_FILE.parent.mkdir(exist_ok=True)
     port = get_port()
@@ -85,11 +103,10 @@ def status():
         print("⚪ SLT app is NOT running.")
         return
     pid = int(PID_FILE.read_text())
-    try:
-        os.kill(pid, 0)
+    if _alive(pid):
         print(f"🟢 SLT app is RUNNING (PID {pid})")
         print(f"   Open: http://localhost:{get_port()}")
-    except OSError:
+    else:
         print("🔴 PID file exists but process is not running. Run 'start' to restart.")
         PID_FILE.unlink(missing_ok=True)
 
