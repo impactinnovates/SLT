@@ -1,0 +1,71 @@
+# Build and deploy the SLT Strategic Initiatives Flask app to Azure App Service.
+# Mirrors the proven DemandPulse / SCP / FSM deploy: Oryx builds on the platform,
+# auth to Azure is OIDC (no stored publish profile / no passwords in the repo).
+#
+# Required GitHub repo secrets (see AZURE_RUNBOOK.md "GitHub Actions OIDC"):
+#   AZURE_CLIENT_ID         github-slt-ieg-deploy app reg (federated credential)
+#   AZURE_TENANT_ID         Entra tenant id
+#   AZURE_SUBSCRIPTION_ID   target subscription
+
+name: Build and deploy Python app to Azure Web App - slt-ieg
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create and start virtual environment and install dependencies
+        run: |
+          python -m venv antenv
+          source antenv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Upload artifact for deployment jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: |
+            .
+            !antenv/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write   # required for OIDC token request
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 'Deploy to Azure Web App'
+        uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
+        with:
+          app-name: 'slt-ieg'
+          slot-name: 'Production'

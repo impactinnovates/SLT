@@ -25,10 +25,34 @@ load_dotenv(ROOT / ".env")
 APP_PORT = int(os.getenv("APP_PORT", 8502))
 APP_HOST = os.getenv("APP_HOST", "127.0.0.1")   # localhost by default; Azure binds via gunicorn
 
-# ── Local fallback data + edit overlays ─────────────────────────
-CSV_PATH             = ROOT / os.getenv("CSV_PATH",             "data/Strategic_Initiatives_2026.csv")
-EDITS_PATH           = ROOT / os.getenv("EDITS_PATH",           "data/edits.json")
-SUB_INITIATIVES_PATH = ROOT / os.getenv("SUB_INITIATIVES_PATH", "data/sub_initiatives.json")
+# ── Data locations ──────────────────────────────────────────────
+# The base CSV export is committed seed data (read-only). The edit overlays are
+# runtime state and MUST live on persistent storage: on Azure App Service only
+# /home/site/data survives restarts AND redeploys (the code folder is replaced
+# on every deploy). Locally they sit in the repo's data/ folder.
+def _data_dir() -> Path:
+    if os.environ.get("WEBSITE_SITE_NAME"):          # set by Azure App Service
+        d = Path("/home/site/data")
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    return ROOT / "data"
+
+
+DATA_DIR = _data_dir()
+
+
+def _resolve(env_key: str, default: Path) -> Path:
+    """Env override wins; a relative override resolves against the repo root."""
+    v = os.getenv(env_key)
+    if not v:
+        return default
+    p = Path(v)
+    return p if p.is_absolute() else ROOT / p
+
+
+CSV_PATH             = _resolve("CSV_PATH",             ROOT / "data" / "Strategic_Initiatives_2026.csv")
+EDITS_PATH           = _resolve("EDITS_PATH",           DATA_DIR / "edits.json")
+SUB_INITIATIVES_PATH = _resolve("SUB_INITIATIVES_PATH", DATA_DIR / "sub_initiatives.json")
 
 # ── Microsoft Entra SSO (user sign-in) ──────────────────────────
 ENTRA_CLIENT_ID     = os.getenv("ENTRA_CLIENT_ID", "")
