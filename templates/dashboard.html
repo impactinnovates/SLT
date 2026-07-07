@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>SLT Dashboard</h1>
+<div class="muted">Board-level strategic initiatives</div>
+
+{{ m.filter_bar(options, args) }}
+
+<div class="kpis">
+  <div class="kpi"><div class="lab">Total</div><div class="n">{{ stats.total }}</div></div>
+  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">On Track</div><div class="n">{{ stats.on_track }}</div></div>
+  <div class="kpi" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ stats.at_risk }}</div></div>
+  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Behind</div><div class="n">{{ stats.behind }}</div></div>
+  <div class="kpi" style="border-left-color:#7c3aed"><div class="lab">Blocked</div><div class="n">{{ stats.blocked }}</div></div>
+  <div class="kpi" style="border-left-color:#0369a1"><div class="lab">Completed</div><div class="n">{{ stats.completed }}</div></div>
+</div>
+
+<h2>Financial Summary</h2>
+<div class="kpis fin">
+  <div class="kpi"><div class="lab">Forecasted Revenue</div><div class="n">{{ stats.total_forecasted_rev|currency }}</div>
+    <div class="sub">{{ stats.total_realized_rev|currency }} realized</div></div>
+  <div class="kpi" style="border-left-color:{{ '#5a8010' if stats.rev_pct>=75 else '#d97706' if stats.rev_pct>=50 else '#dc2626' }}">
+    <div class="lab">Revenue Realized</div><div class="n">{{ stats.rev_pct }}%</div></div>
+  <div class="kpi"><div class="lab">Forecasted EBITDA</div><div class="n">{{ stats.total_forecasted_ebitda|currency }}</div>
+    <div class="sub">{{ stats.total_realized_ebitda|currency }} realized</div></div>
+  <div class="kpi" style="border-left-color:{{ '#5a8010' if stats.ebitda_pct>=75 else '#d97706' if stats.ebitda_pct>=50 else '#dc2626' }}">
+    <div class="lab">EBITDA Realized</div><div class="n">{{ stats.ebitda_pct }}%</div></div>
+</div>
+
+<div class="grid12">
+  <div class="panel"><div class="chart" data-fig="{{ charts.donut }}"></div></div>
+  <div class="panel"><div class="chart" data-fig="{{ charts.ebitda }}"></div></div>
+</div>
+<div class="grid2">
+  <div class="panel"><div class="chart" data-fig="{{ charts.revenue }}"></div></div>
+  <div class="panel"><div class="chart" data-fig="{{ charts.cost }}"></div></div>
+</div>
+
+<h2>Needs Attention <span class="muted">({{ attention|length }} Behind / At Risk / Blocked)</span></h2>
+{% if attention %}
+  {% for r in attention %}{{ m.initiative_card(r, user, status_colors, status_icons) }}{% endfor %}
+{% else %}
+  <div class="panel muted" style="padding:14px">Nothing currently behind, at risk, or blocked.</div>
+{% endif %}
+
+{% if recent %}
+<h2>Recently Updated</h2>
+<table>
+  <thead><tr><th>Initiative</th><th>Status</th><th class="num">% Complete</th><th>Owner</th><th>Last Updated By</th></tr></thead>
+  <tbody>
+  {% for r in recent %}
+    <tr><td>{{ r.name }}</td><td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
+        <td class="num">{{ (r.pct_complete or 0)|round|int }}%</td><td>{{ r.owner }}</td><td>{{ r.last_updated_by }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

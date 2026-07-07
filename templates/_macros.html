@@ -1,0 +1,127 @@
+{# ── Global filter bar (GET form; multi-select mirrors the old filter bar) ── #}
+{% macro filter_bar(options, args, sort=None) %}
+<form class="filters" method="get">
+  <div><label>Sponsor</label>
+    <select name="sponsor" multiple size="1">
+      {% for s in options.sponsors %}<option value="{{ s }}" {{ 'selected' if s in args.getlist('sponsor') }}>{{ s }}</option>{% endfor %}
+    </select></div>
+  <div><label>Owner</label>
+    <select name="owner" multiple size="1">
+      {% for o in options.owners %}<option value="{{ o }}" {{ 'selected' if o in args.getlist('owner') }}>{{ o }}</option>{% endfor %}
+    </select></div>
+  <div><label>Status</label>
+    <select name="status" multiple size="1">
+      {% for s in options.statuses %}<option value="{{ s }}" {{ 'selected' if s in args.getlist('status') }}>{{ s }}</option>{% endfor %}
+    </select></div>
+  <div><label>Region</label>
+    <select name="region" multiple size="1">
+      {% for r in options.regions %}<option value="{{ r }}" {{ 'selected' if r in args.getlist('region') }}>{{ r }}</option>{% endfor %}
+    </select></div>
+  {% if sort is not none %}
+  <div><label>Sort</label>
+    <select name="sort">
+      {% for v,l in [('pri_sev','Priority + Severity'),('target_completion','Target date'),('pct_complete','% Complete'),('owner','Owner'),('name','Name')] %}
+        <option value="{{ v }}" {{ 'selected' if sort==v }}>{{ l }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
+  <div><label>Completed</label>
+    <select name="show_completed">
+      <option value="1" {{ 'selected' if args.get('show_completed','1') in ('1','true','on') }}>Show</option>
+      <option value="0" {{ 'selected' if args.get('show_completed') in ('0','false') }}>Hide</option>
+    </select></div>
+  <button class="btn primary" type="submit">Apply</button>
+  <a class="btn ghost" href="?">Clear</a>
+</form>
+{% endmacro %}
+
+
+{# ── One expandable, inline-editable initiative ── #}
+{% macro initiative_card(r, user, status_colors, status_icons) %}
+{% set color = status_colors.get(r.status, '#94a3b8') %}
+{% set pct = (r.pct_complete or 0)|float %}
+<details class="init" style="border-left-color:{{ color }}">
+  <summary>
+    <span>{{ status_icons.get(r.status, '⚪') }}</span>
+    <span class="nm">{{ r.name }}</span>
+    <span class="bar"><i style="width:{{ pct }}%;background:{{ color }}"></i></span>
+    <span class="meta">{{ r.owner or '-' }} · {{ pct|round|int }}% · {{ r.target_completion|date }}</span>
+  </summary>
+  <div class="body">
+    <div style="margin:8px 0">
+      <span class="pill" style="background:{{ color }}18;color:{{ color }};border-color:{{ color }}44">
+        {{ status_icons.get(r.status,'⚪') }} {{ r.status }}</span>
+    </div>
+    {% if r.next_action and r.next_action not in ('nan','None') %}
+      <div class="callout"><div class="h">Next Action</div>{{ r.next_action }}</div>{% endif %}
+    {% if r.blockers and r.blockers not in ('nan','None') %}
+      <div class="callout block"><div class="h">Blocker</div>{{ r.blockers }}</div>{% endif %}
+    <div class="metarow">
+      <span><b>Sponsor:</b> {{ r.sponsor or '-' }}</span>
+      <span><b>Region:</b> {{ r.region or '-' }}</span>
+      <span><b>Priority:</b> P{{ r.priority or '-' }}</span>
+      <span><b>Start:</b> {{ r.start_date|date }}</span>
+      <span><b>Target:</b> {{ r.target_completion|date }}</span>
+    </div>
+    {% if user.role == 'SLT' and (r.forecasted_ebitda or r.forecasted_revenue or r.forecasted_cost) %}
+    <div class="fin">
+      <div class="c"><div class="l">Fcst Rev</div><div class="v">{{ r.forecasted_revenue|currency }}</div></div>
+      <div class="c"><div class="l">Real Rev</div><div class="v">{{ r.realized_revenue|currency }}</div></div>
+      <div class="c"><div class="l">Fcst EBITDA</div><div class="v">{{ r.forecasted_ebitda|currency }}</div></div>
+      <div class="c"><div class="l">Real EBITDA</div><div class="v">{{ r.realized_ebitda|currency }}</div></div>
+      <div class="c"><div class="l">Fcst Cost</div><div class="v">{{ r.forecasted_cost|currency }}</div></div>
+      <div class="c"><div class="l">Real Cost</div><div class="v">{{ r.realized_cost|currency }}</div></div>
+    </div>
+    {% endif %}
+
+    {% if user.role in ('SLT','PM') %}
+    <details style="margin-top:6px">
+      <summary class="btn ghost" style="display:inline-block">Edit</summary>
+      <form class="editform" hx-post="/api/initiative/{{ r.id }}"
+            hx-target="closest details.init" hx-swap="outerHTML">
+        <input type="hidden" name="sp_id" value="{{ r.sp_id or '' }}">
+        <div class="frow">
+          <div class="fld" style="flex:2"><label>Name</label>
+            <input name="name" value="{{ r.name }}" style="width:100%"></div>
+          <div class="fld"><label>Status</label>
+            <select name="status">
+              {% for s in ['On Track','At Risk','Behind','Blocked','Not Started','Completed'] %}
+                <option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}
+            </select></div>
+          <div class="fld"><label>% Complete</label>
+            <input type="number" name="pct_complete" min="0" max="100" value="{{ pct|round|int }}"></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Next Action</label>
+            <textarea name="next_action" rows="2">{{ r.next_action if r.next_action not in ('nan','None') else '' }}</textarea></div>
+          <div class="fld"><label>Blockers</label>
+            <textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Completed Actions</label>
+            <textarea name="completed_actions" rows="2">{{ r.completed_actions if r.completed_actions not in ('nan','None') else '' }}</textarea></div>
+        </div>
+        {% if user.role == 'SLT' %}
+        <div class="frow">
+          <div class="fld"><label>Realized Revenue</label><input name="realized_revenue" value="{{ r.realized_revenue or '' }}"></div>
+          <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda or '' }}"></div>
+          <div class="fld"><label>Realized Cost</label><input name="realized_cost" value="{{ r.realized_cost or '' }}"></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Forecast Revenue</label><input name="forecasted_revenue" value="{{ r.forecasted_revenue or '' }}"></div>
+          <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda" value="{{ r.forecasted_ebitda or '' }}"></div>
+          <div class="fld"><label>Forecast Cost</label><input name="forecasted_cost" value="{{ r.forecasted_cost or '' }}"></div>
+        </div>
+        {% endif %}
+        <button class="btn primary" type="submit">Save Changes</button>
+        {% if user.role == 'SLT' %}
+        <button class="btn danger" type="button"
+                hx-post="/api/initiative/{{ r.id }}/delete"
+                hx-target="closest details.init" hx-swap="outerHTML"
+                hx-confirm="Delete this initiative? (only works if you are its sponsor)">Delete</button>
+        {% endif %}
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</details>
+{% endmacro %}

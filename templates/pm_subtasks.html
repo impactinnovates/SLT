@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sub-Tasks</h1>
+<div class="muted">Team-member tasks under your initiatives. Update status inline; assignees see their own under "My Tasks".</div>
+
+{% if subs %}
+<table>
+  <thead><tr><th>Task</th><th>Owner</th><th>Parent</th><th>Status</th><th class="num">%</th><th>Due</th><th></th></tr></thead>
+  <tbody>
+  {% for t in subs %}
+  <tr>
+    <td>{{ t.name }}</td><td>{{ t.owner }}</td>
+    <td class="muted">{{ t.parent_id }}</td>
+    <td>
+      <form hx-post="/api/subtask/{{ t.id }}" hx-swap="none" style="display:flex;gap:6px;align-items:center">
+        <select name="status">
+          {% for s in ['Not Started','On Track','At Risk','Behind','Blocked','Completed'] %}
+            <option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}
+        </select>
+    </td>
+    <td class="num"><input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}" style="width:64px"></td>
+    <td>{{ t.due_date|date }}</td>
+    <td><button class="btn primary" type="submit">Save</button></form></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="panel muted" style="padding:14px">No sub-tasks yet.</div>
+{% endif %}
+{% endblock %}

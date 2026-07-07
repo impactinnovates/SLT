@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>Financial Pacing</h1>
+<div class="muted">Board-level initiatives - forecast vs realized actuals</div>
+
+{{ m.filter_bar(options, args) }}
+
+<div class="kpis fin">
+  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">On Pace</div><div class="n">{{ pace.on }}</div></div>
+  <div class="kpi" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ pace.at }}</div></div>
+  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Behind Pace</div><div class="n">{{ pace.behind }}</div></div>
+  <div class="kpi" style="border-left-color:#aac4d4"><div class="lab">No Data</div><div class="n">{{ pace.nodata }}</div></div>
+</div>
+
+<div class="grid2">
+  <div class="panel"><div class="chart" data-fig="{{ charts.curve }}"></div>
+    <div class="muted" style="padding:0 8px 8px">Dashed = expected pace. Solid = realized to date.</div></div>
+  <div class="panel"><div class="chart" data-fig="{{ charts.gap }}"></div>
+    <div class="muted" style="padding:0 8px 8px">Bar = Realized minus Expected Today.</div></div>
+</div>
+
+<h2>EBITDA: Forecasted vs Realized</h2>
+<div class="panel"><div class="chart" data-fig="{{ charts.ebitda }}"></div></div>
+<h2>Revenue Pacing</h2>
+<div class="panel"><div class="chart" data-fig="{{ charts.revenue }}"></div></div>
+<h2>Project Cost Tracking</h2>
+<div class="panel"><div class="chart" data-fig="{{ charts.cost }}"></div></div>
+
+<h2>Pacing Detail</h2>
+<table>
+  <thead><tr>
+    <th>Initiative</th><th>Owner</th><th>Status</th><th class="num">% Done</th>
+    <th class="num">Fcst EBITDA</th><th class="num">Real EBITDA</th><th>Pace</th>
+    <th class="num">Fcst Rev</th><th class="num">Real Rev</th><th>Target</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.name }}</td><td>{{ r.owner }}</td><td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
+      <td class="num">{{ (r.pct_complete or 0)|round|int }}%</td>
+      <td class="num">{{ r.forecasted_ebitda|currency }}</td><td class="num">{{ r.realized_ebitda|currency }}</td>
+      <td>{{ r.ebitda_pace_label or '-' }}</td>
+      <td class="num">{{ r.forecasted_revenue|currency }}</td><td class="num">{{ r.realized_revenue|currency }}</td>
+      <td>{{ r.target_completion|date }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

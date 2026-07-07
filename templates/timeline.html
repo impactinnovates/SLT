@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>Initiative Timeline</h1>
+<div class="muted">Start-to-target spans across the year; the dotted line marks today.</div>
+{{ m.filter_bar(options, args) }}
+<div class="panel"><div class="chart" data-fig="{{ chart }}"></div></div>
+{% endblock %}

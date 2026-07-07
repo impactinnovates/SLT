@@ -1,0 +1,204 @@
+"""
+data/loader.py
+Loads initiatives (via data/source.py: live List or local CSV), cleans/types the
+frame, and applies the local edit overlay. Also handles writes.
+
+Write policy (deliberate and safe):
+  - Reads can be live from the SharePoint List as soon as GRAPH_* is configured.
+  - Writes go to the live List ONLY when settings.LIST_WRITE_ENABLED is true AND
+    the item has a SharePoint id. Until then (the default), every edit is staged
+    in data/edits.json so nothing is lost and nothing is written to the List
+    before the field mapping is confirmed by the probe.
+
+This module is framework-free (no Streamlit); the Flask app imports it directly.
+"""
+import re
+import json
+import uuid
+from pathlib import Path
+
+import pandas as pd
+
+from config import settings
+from data import source
+from data.models import (CSV_MAP, INTERNAL_TO_GRAPH, parse_currency, parse_pct,
+                         parse_date)
+
+# Simple in-process cache so a single request doesn't hit Graph repeatedly.
+_CACHE: dict = {}
+
+
+def clear_cache():
+    _CACHE.clear()
+
+
+# ── Edit overlay (field-level, keyed by initiative id) ──────────────────────
+def _load_edits() -> dict:
+    try:
+        p = Path(settings.EDITS_PATH)
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def _save_edits(edits: dict):
+    p = Path(settings.EDITS_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(edits, indent=2, default=str), encoding="utf-8")
+
+
+# ── Load + clean ────────────────────────────────────────────────────────────
+def load_initiatives(force: bool = False) -> pd.DataFrame:
+    if not force and "initiatives" in _CACHE:
+        return _CACHE["initiatives"].copy()
+    df = source.fetch_initiatives()
+    df = _clean_df(df)
+    df = _apply_overlay(df)
+    _CACHE["initiatives"] = df
+    return df.copy()
+
+
+def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    html_re = re.compile(r"<[^>]+>")
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].astype(str).apply(lambda x: html_re.sub("", x).strip())
+        df[col] = df[col].replace({"nan": "", "None": "", "0": ""})
+
+    for col in ["forecasted_cost", "realized_cost", "forecasted_revenue",
+                "realized_revenue", "forecasted_ebitda", "realized_ebitda"]:
+        if col in df.columns:
+            df[col] = df[col].apply(parse_currency)
+
+    if "pct_complete" in df.columns:
+        df["pct_complete"] = df["pct_complete"].apply(
+            lambda x: parse_pct(str(x)) if pd.notna(x) else None)
+
+    for col in ["start_date", "target_completion", "revised_completion",
+                "actual_completion", "benefit_start_date"]:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: parse_date(str(x)) if pd.notna(x) else None)
+
+    if "status" in df.columns:
+        df["status"] = df["status"].str.strip()
+    if "id" in df.columns:
+        df["id"] = df["id"].astype(str)
+    return df
+
+
+def _apply_overlay(df: pd.DataFrame) -> pd.DataFrame:
+    """Overlay staged edits, drop soft-deletes, and append staged new rows."""
+    edits = _load_edits()
+    if not edits:
+        return df
+
+    new_rows = edits.pop("_new_", {}) if isinstance(edits.get("_new_"), dict) else {}
+
+    drop_ids = []
+    for item_id, fields in edits.items():
+        if not isinstance(fields, dict):
+            continue
+        mask = df["id"].astype(str) == str(item_id) if "id" in df.columns else pd.Series([], dtype=bool)
+        if fields.get("_deleted"):
+            drop_ids.append(str(item_id))
+            continue
+        if mask.any():
+            for col, val in fields.items():
+                if col.startswith("_"):
+                    continue
+                if col in df.columns:
+                    df.loc[mask, col] = val
+
+    if drop_ids and "id" in df.columns:
+        df = df[~df["id"].astype(str).isin(drop_ids)]
+
+    if new_rows:
+        df = pd.concat([df, pd.DataFrame(list(new_rows.values()))], ignore_index=True)
+    return df
+
+
+# ── Writes ──────────────────────────────────────────────────────────────────
+def _live_write(sp_id, fields: dict) -> bool:
+    """Push an update to the List via Graph, mapping internal -> SharePoint
+    column names. Returns True on success. Only reached when writes are enabled."""
+    graph_fields = {INTERNAL_TO_GRAPH[k]: v for k, v in fields.items()
+                    if k in INTERNAL_TO_GRAPH and not k.startswith("_")}
+    if not graph_fields:
+        return False
+    from data.graph_client import get_graph_client
+    get_graph_client().update_item(str(sp_id), graph_fields)
+    return True
+
+
+def update_initiative(item_id: str, fields: dict, sp_id=None) -> bool:
+    try:
+        if settings.LIST_WRITE_ENABLED and settings.graph_is_configured() and sp_id:
+            _live_write(sp_id, fields)
+        else:
+            edits = _load_edits()
+            edits.setdefault(str(item_id), {})
+            edits[str(item_id)].update({k: v for k, v in fields.items() if k != "id"})
+            _save_edits(edits)
+        clear_cache()
+        return True
+    except Exception:
+        return False
+
+
+def create_initiative(fields: dict) -> bool:
+    try:
+        if settings.LIST_WRITE_ENABLED and settings.graph_is_configured():
+            graph_fields = {INTERNAL_TO_GRAPH[k]: v for k, v in fields.items()
+                            if k in INTERNAL_TO_GRAPH}
+            from data.graph_client import get_graph_client
+            get_graph_client().create_item(graph_fields)
+        else:
+            new_id = f"new_{uuid.uuid4().hex[:8]}"
+            edits = _load_edits()
+            edits.setdefault("_new_", {})
+            edits["_new_"][new_id] = {**fields, "id": new_id}
+            _save_edits(edits)
+        clear_cache()
+        return True
+    except Exception:
+        return False
+
+
+def delete_initiative(item_id: str, sp_id=None) -> bool:
+    """Caller must verify sponsor permission before calling this."""
+    try:
+        if settings.LIST_WRITE_ENABLED and settings.graph_is_configured() and sp_id:
+            from data.graph_client import get_graph_client
+            get_graph_client().delete_item(str(sp_id))
+        else:
+            edits = _load_edits()
+            edits.setdefault(str(item_id), {})
+            edits[str(item_id)]["_deleted"] = True
+            _save_edits(edits)
+        clear_cache()
+        return True
+    except Exception:
+        return False
+
+
+# ── Sub-initiatives (TM task layer, local JSON) ─────────────────────────────
+def load_sub_initiatives() -> pd.DataFrame:
+    try:
+        p = Path(settings.SUB_INITIATIVES_PATH)
+        if p.exists():
+            return pd.read_json(p)
+    except Exception:
+        pass
+    return pd.DataFrame(columns=[
+        "id", "parent_id", "name", "description", "owner", "status",
+        "pct_complete", "due_date", "created_by", "next_action", "blockers",
+    ])
+
+
+def save_sub_initiatives(df: pd.DataFrame):
+    p = Path(settings.SUB_INITIATIVES_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    df.to_json(p, orient="records", date_format="iso", indent=2)

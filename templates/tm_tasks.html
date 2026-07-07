@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>My Tasks</h1>
+<div class="muted">Tasks assigned to you. Update status and progress inline.</div>
+
+{% if tasks %}
+  {% for t in tasks %}
+  {% set color = status_colors.get(t.status,'#94a3b8') %}
+  <details class="init" style="border-left-color:{{ color }}">
+    <summary>
+      <span>{{ status_icons.get(t.status,'⚪') }}</span>
+      <span class="nm">{{ t.name }}</span>
+      <span class="bar"><i style="width:{{ (t.pct_complete or 0)|float }}%;background:{{ color }}"></i></span>
+      <span class="meta">{{ (t.pct_complete or 0)|round|int }}% · Due {{ t.due_date|date }}</span>
+    </summary>
+    <div class="body">
+      {% if t.description %}<div class="metarow"><b>Description:</b> {{ t.description }}</div>{% endif %}
+      {% if t.next_action %}<div class="callout"><div class="h">Next Action</div>{{ t.next_action }}</div>{% endif %}
+      {% if t.blockers %}<div class="callout block"><div class="h">Blocker</div>{{ t.blockers }}</div>{% endif %}
+      <form class="editform" hx-post="/api/subtask/{{ t.id }}" hx-swap="none">
+        <div class="frow">
+          <div class="fld"><label>Status</label>
+            <select name="status">
+              {% for s in ['Not Started','On Track','At Risk','Behind','Blocked','Completed'] %}
+                <option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}
+            </select></div>
+          <div class="fld"><label>% Complete</label>
+            <input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}"></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ t.next_action or '' }}</textarea></div>
+          <div class="fld"><label>Blocker</label><textarea name="blockers" rows="2">{{ t.blockers or '' }}</textarea></div>
+        </div>
+        <button class="btn primary" type="submit">Save Update</button>
+      </form>
+    </div>
+  </details>
+  {% endfor %}
+{% else %}
+  <div class="panel muted" style="padding:14px">No tasks assigned to you yet.</div>
+{% endif %}
+{% endblock %}

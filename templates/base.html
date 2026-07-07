@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IEG Strategic Initiatives</title>
+  <link rel="stylesheet" href="/static/brand.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--font);color:var(--text);background:var(--bg);font-size:14px}
+    main{max-width:1500px;margin:16px auto;padding:0 22px 64px}
+    h1{font-size:20px;color:var(--text);margin:.2em 0;font-weight:800}
+    h2{font-size:16px;margin:18px 0 6px;font-weight:800;color:var(--text)}
+    .muted{color:var(--muted);font-size:12px}
+    /* KPI tiles */
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:12px 0}
+    .kpi{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);
+         border-radius:10px;padding:11px 13px;box-shadow:var(--shadow)}
+    .kpi .lab{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .kpi .n{font-size:22px;font-weight:800;color:var(--text);line-height:1.15}
+    .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+    .kpis.fin{grid-template-columns:repeat(4,1fr)}
+    /* cards + charts */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .grid12{display:grid;grid-template-columns:1fr 2fr;gap:14px}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:10px;
+           padding:8px;box-shadow:var(--shadow);margin:8px 0}
+    .chart{width:100%}
+    /* filter bar */
+    .filters{background:var(--card);border:1px solid var(--border);border-radius:10px;
+             padding:10px 14px;margin:10px 0;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+    .filters label{display:block;font-size:10px;font-weight:700;color:var(--muted);
+                   text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+    .filters select{min-width:150px;height:34px}
+    select,input,textarea{padding:6px 9px;border:1px solid #c3d0d8;border-radius:6px;
+           font-size:13px;background:#fff;color:var(--text);font-family:var(--font)}
+    textarea{width:100%;resize:vertical}
+    .btn{border:0;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;
+         font-family:var(--font);text-decoration:none;display:inline-block}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.primary:hover{background:var(--accent-dark)}
+    .btn.ghost{background:#fff;border:1px solid var(--border);color:var(--muted)}
+    .btn.danger{background:#fff;border:1px solid #f3c0c1;color:#a32b2d}
+    /* initiative rows */
+    .init{background:var(--card);border:1px solid var(--border);border-radius:10px;
+          margin:6px 0;box-shadow:var(--shadow);border-left:4px solid #ccc;overflow:hidden}
+    .init summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;align-items:center;
+                  gap:10px;flex-wrap:wrap}
+    .init summary::-webkit-details-marker{display:none}
+    .init .nm{font-weight:700;color:var(--text);font-size:14px}
+    .init .meta{color:var(--muted);font-size:12px;margin-left:auto;white-space:nowrap}
+    .bar{height:7px;background:var(--panelHi);border-radius:99px;overflow:hidden;flex:1;min-width:80px;max-width:160px}
+    .bar > i{display:block;height:100%;border-radius:99px}
+    .body{padding:2px 14px 14px;border-top:1px solid var(--line2)}
+    .callout{border-left:3px solid var(--accent);background:var(--brand-lime-bg);border-radius:0 8px 8px 0;
+             padding:7px 11px;margin:6px 0;font-size:13px}
+    .callout.block{border-left-color:var(--red);background:#fdecec}
+    .callout .h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+    .metarow{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0}
+    .fin{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:8px 0}
+    .fin .c{background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:6px 9px}
+    .fin .c .l{font-size:10px;color:var(--muted);text-transform:uppercase}
+    .fin .c .v{font-size:14px;font-weight:700;color:var(--text)}
+    /* tables */
+    table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+    th{background:#eaf1f4;color:var(--muted);text-align:left;font-size:11px;font-weight:700;
+       text-transform:uppercase;letter-spacing:.4px;padding:8px 12px}
+    td{border-bottom:1px solid var(--line);padding:7px 12px;font-size:13px}
+    .num{text-align:right;font-variant-numeric:tabular-nums}
+    /* edit form */
+    .editform{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:12px;margin-top:8px}
+    .editform .frow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+    .editform .fld{flex:1;min-width:150px}
+    .editform .fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}
+    .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid transparent}
+    .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
+    .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
+    .src.csv{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
+    @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.grid2,.grid12{grid-template-columns:1fr}.fin{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+  <nav class="ieg-nav">
+    <a class="ieg-brand" href="/" title="IEG Strategic Initiatives - home">
+      <img src="/static/ieg-logo.png" alt="Impact Environmental Group" class="ieg-logo">
+      <span class="sub" style="font-size:15px;font-weight:800;margin-left:2px">Strategic Initiatives</span>
+    </a>
+    {% if user and user.role == 'SLT' %}
+      <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
+      <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">All Initiatives</a>
+      <a class="ieg-link {{ 'active' if nav=='financial' }}" href="/financial">Financial Pacing</a>
+      <a class="ieg-link {{ 'active' if nav=='timeline' }}" href="/timeline">Timeline</a>
+      <a class="ieg-link {{ 'active' if nav=='new' }}" href="/new">+ New</a>
+    {% elif user and user.role == 'PM' %}
+      <a class="ieg-link {{ 'active' if nav=='pm_initiatives' }}" href="/pm/initiatives">My Initiatives</a>
+      <a class="ieg-link {{ 'active' if nav=='pm_subtasks' }}" href="/pm/subtasks">Sub-Tasks</a>
+    {% else %}
+      <a class="ieg-link {{ 'active' if nav=='tm_tasks' }}" href="/tm/tasks">My Tasks</a>
+    {% endif %}
+    <span class="ieg-spacer"></span>
+    <span class="src {{ source_label }}" title="Data source">
+      {{ 'LIVE LIST' if source_label=='live' else 'LOCAL CSV' }}</span>
+    {% if user %}
+      <a class="ieg-link" href="/auth/logout" title="{{ user.email }}">{{ user.name }} ({{ user.role }}) &nbsp;Sign out</a>
+    {% endif %}
+  </nav>
+  <main>{% block content %}{% endblock %}</main>
+
+  <script>
+    // Render every Plotly figure emitted as <div class="chart" data-fig='...'>.
+    function drawCharts(scope){
+      (scope||document).querySelectorAll('.chart[data-fig]').forEach(function(el){
+        if(el.dataset.drawn) return;
+        try{
+          var f = JSON.parse(el.dataset.fig);
+          Plotly.newPlot(el, f.data, f.layout, {responsive:true, displayModeBar:false});
+          el.dataset.drawn = "1";
+        }catch(e){ el.innerHTML = '<div class="muted" style="padding:20px">Chart unavailable</div>'; }
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function(){ drawCharts(); });
+    document.body.addEventListener('htmx:afterSwap', function(e){ drawCharts(e.target); });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,97 @@
+/* ============================================================================
+   IEG Supply Chain — shared brand stylesheet (single source of truth)
+   ----------------------------------------------------------------------------
+   Every SCP page links this file and inherits one palette, one type scale, and
+   one component look. Page-local :root color tokens were removed so this file
+   governs the brand — change a value here and it updates everywhere.
+
+   Palette is Impact Environmental Group (iegna.com): corporate blue + lime on
+   neutral gray. Token NAMES are the union of what the pages already referenced
+   (both --txt/--mut and --text/--muted families) so existing markup just works.
+   ========================================================================== */
+
+:root {
+  /* ---- IEG brand ---- */
+  --accent:#0067b1;          /* IEG corporate blue — the one primary accent  */
+  --accent-dark:#00528e;     /* hover / pressed                              */
+  --accent-bg:#e6f1f8;       /* light blue tint (active chips, row hover)    */
+  --brand-lime:#99c221;      /* IEG lime — secondary / positive accent       */
+  --brand-lime-dark:#76a22f; /* lime text on light (more legible)            */
+  --brand-lime-bg:#f2f7e1;   /* light lime tint                              */
+  --link:#1d83e2;            /* IEG bright blue for inline links             */
+
+  /* ---- surfaces ---- */
+  --bg:#f4f5f7; --panel:#ffffff; --panel2:#f9fafb; --panelHi:#f3f4f6;
+  --card:#ffffff;            /* alias used by index.html                     */
+  --line:#e5e5e5; --line2:#eef0f3; --border:#e5e5e5;  /* --border alias      */
+
+  /* ---- text ---- */
+  --txt:#1a1a1a; --text:#1a2730;          /* --text alias (index)           */
+  --mut:#555555; --mut2:#757575; --mut3:#666666; --muted:#5a6b76; /* aliases */
+
+  /* ---- semantic (aligned to IEG) ---- */
+  --red:#cc4749; --amber:#f1a500; --green:#2f8f3e; --blue:#1d83e2;
+  --purple:#6a4cab; --orange:#d47e0c; --gray:#94a3b8; --teal:#0891b2;
+
+  /* ---- type ---- */
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,'Courier New',monospace;
+
+  /* ---- depth & shape ---- */
+  --radius:8px; --radius-pill:20px;
+  --shadow:0 1px 3px rgba(0,0,0,.06);
+  --shadow-hover:0 2px 8px rgba(0,0,0,.10);
+  --shadow-hi:0 4px 18px rgba(0,0,0,.10);   /* alias used by warming.html */
+}
+
+/* Base element defaults (additive — pages keep their own structural rules). */
+a { color:var(--link); }
+::selection { background:var(--accent-bg); }
+::-webkit-scrollbar { width:11px; height:11px; }
+::-webkit-scrollbar-thumb { background:#cdd3d9; border-radius:6px; }
+::-webkit-scrollbar-thumb:hover { background:#b3bcc4; }
+
+/* ---- Official IEG logo lockup (raster) ----------------------------------
+   Primary logo file: ieg-logo.png (navy "IEG" monogram + green arc + the
+   "IMPACT ENVIRONMENTAL GROUP" wordmark). It's navy/green on a light field, so on
+   the blue .ieg-nav bar sit it on a white chip via .ieg-logo so it reads. Use the
+   real logo for headers/exports; the text .brand-mark below is the fallback
+   wordmark for places an image is awkward (favicons, tiny chips). */
+.ieg-logo { height:28px; width:auto; display:block; background:#fff;
+  padding:3px 8px; border-radius:6px; }
+.ieg-nav .ieg-brand .ieg-logo { height:26px; }
+
+/* ---- Branded header wordmark (opt-in via .brand-mark) -------------------- */
+.brand-mark { display:inline-flex; align-items:center; gap:9px; font-weight:800;
+  letter-spacing:-.01em; line-height:1; }
+.brand-mark .brand-chip { display:inline-block; background:var(--accent);
+  color:#fff; font-size:13px; font-weight:800; letter-spacing:.04em;
+  padding:4px 8px; border-radius:5px; }
+.brand-mark .brand-chip .lime { color:var(--brand-lime); }
+
+/* ---- Unified status pill system ----------------------------------------- */
+.pill { display:inline-block; padding:2px 9px; border-radius:99px;
+  font-size:11.5px; font-weight:700; line-height:1.5; border:1px solid transparent;
+  white-space:nowrap; }
+.pill.is-critical { background:#fdecec; color:#a32b2d; border-color:#f3c0c1; }
+.pill.is-warn     { background:#fff6e2; color:#9a6a00; border-color:#f6dfa6; }
+.pill.is-ok       { background:var(--brand-lime-bg); color:var(--brand-lime-dark); border-color:#d4e6a3; }
+.pill.is-info     { background:var(--accent-bg); color:var(--accent-dark); border-color:#bcd9ec; }
+.pill.is-stale    { background:#ffedd5; color:#9a3412; border-color:#fed7aa; }
+.pill.is-muted    { background:#f1f1f1; color:#616161; border-color:#e0e0e0; }
+
+/* ---- Global app navigation (injected by /brand-nav.js on every page) ----- */
+.ieg-nav { display:flex; align-items:center; gap:2px; background:var(--accent);
+  padding:0 14px; height:46px; box-shadow:var(--shadow); font:var(--font); }
+.ieg-nav .ieg-brand { display:inline-flex; align-items:center; gap:7px;
+  color:#fff; font-weight:800; letter-spacing:-.01em; font-size:15px;
+  text-decoration:none; margin-right:12px; white-space:nowrap; }
+.ieg-nav .ieg-brand .lime { color:var(--brand-lime); font-size:13px; }
+.ieg-nav .ieg-brand .sub { font-weight:600; opacity:.85; }
+.ieg-nav a.ieg-link { color:rgba(255,255,255,.82); text-decoration:none;
+  font-size:13.5px; font-weight:600; padding:7px 11px; border-radius:6px;
+  white-space:nowrap; transition:background .15s, color .15s; }
+.ieg-nav a.ieg-link:hover { color:#fff; background:rgba(255,255,255,.13); }
+.ieg-nav a.ieg-link.active { color:#fff; background:rgba(255,255,255,.20); }
+.ieg-nav .ieg-spacer { flex:1; }
+@media (max-width:900px){ .ieg-nav{ overflow-x:auto; } }

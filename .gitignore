@@ -1,0 +1,28 @@
+# Secrets / environment
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Local runtime / process state
+.slt_pid
+_logs/
+logs/
+*.log
+
+# Local edit overlays (runtime data, not source). The base CSV export IS tracked
+# so the app has seed data; the overlays below are per-deployment state.
+data/edits.json
+data/sub_initiatives.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
