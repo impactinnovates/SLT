@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────────
+#  Excel -> List sync: 2026 Cost Takeout Tracker (NA)
+#  The mapping lives IN the sheet: column AV = List ID. Rows that share an ID
+#  are summed. No hand-built mapping here - edit the sheet's AV column instead.
+# ─────────────────────────────────────────────────────────────
+sources:
+  - name: "2026 Cost Takeout Tracker (NA)"
+    # Stable file reference (never breaks when a share link rotates).
+    drive_id: "b!JzZoPhASkUO8Q0nUmWN3QY-zcKtaUZpGna_GJGeu3lWkXCbFYHNnTL-012l8CPHV"
+    item_id:  "01ZSZVXRBEFHBTATMORJGJ2GPESPKNN4Z7"
+    sheet:    "Sheet1"
+    id_column:    "AV"     # List ID tag (Chad maintains this)
+    value_column: "X"      # FY26 Actual Realized Savings ($ thousands)
+    multiplier:   1000     # tracker is $k; List stores full dollars
+  # EMEA tracker will be added here once its AV (List ID) column is filled in.
+
+writes:
+  realized_field: "realized_ebitda"   # <- sum(value) * multiplier
+  pct_field:      "pct_complete"      # <- realized / budget (fraction; real, uncapped)
+  budget_field:   "forecasted_ebitda"
+  pct_cap:        null                # keep the real math; show >100% when over budget
+  stamp_field:    "last_updated_by"
+  stamp_label:    "Cost Takeout Sync" # written with a timestamp, e.g. "... 2026-07-08 16:40"

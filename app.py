@@ -264,6 +264,30 @@ def board():
                            generated=date.today().strftime("%B %d, %Y"))
 
 
+# ── SLT: Excel -> List savings sync ─────────────────────────────────────────
+@app.route("/sync")
+@auth.require_role("SLT")
+def sync_page():
+    from data import excel_sync
+    try:
+        updates, _ = excel_sync.compute_updates()
+        err = None
+    except Exception as e:
+        updates, err = [], str(e)[:300]
+    return render_template("sync.html", nav="sync", updates=updates, err=err,
+                           writes_on=settings.LIST_WRITE_ENABLED)
+
+
+@app.route("/api/sync/cost-takeout", methods=["POST"])
+@auth.require_role("SLT")
+def api_sync():
+    from data import excel_sync
+    only = request.form.get("only") or None
+    updates, cfg = excel_sync.compute_updates()
+    results = excel_sync.apply_updates(updates, cfg, only=only)
+    return render_template("sync_result.html", results=results)
+
+
 # ── Leader / Member: task workspace ─────────────────────────────────────────
 @app.route("/tasks")
 def tasks_view():

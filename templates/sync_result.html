@@ -1,0 +1,21 @@
+<div class="panel" style="padding:12px">
+  <div class="subt">Sync result</div>
+  <table>
+    <thead><tr><th>ID</th><th>Initiative</th><th class="num">Realized EBITDA</th><th class="num">% Complete</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td>{{ r.id }}</td><td>{{ r.name }}</td>
+        <td class="num">{{ r.realized_new|currency }}</td>
+        <td class="num">{% if r.pct_new is not none %}{{ (r.pct_new*100)|round|int }}%{% else %}-{% endif %}</td>
+        <td>
+          {% if r.status == 'updated' %}<span class="pill" style="background:var(--brand-lime-bg);color:var(--brand-lime-dark)">✓ updated</span>
+          {% elif 'skipped' in r.status %}<span class="pill" style="background:#fff6e2;color:#9a6a00">{{ r.status }}</span>
+          {% else %}<span class="pill" style="background:#fdecec;color:#a32b2d">{{ r.status }}</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="muted" style="margin-top:8px">Refresh Initiatives / Dashboard to see the updated figures.</div>
+</div>
