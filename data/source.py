@@ -47,4 +47,10 @@ def _from_graph() -> pd.DataFrame:
     # The SharePoint item id is the write-back key; surface it as sp_id.
     if "_sp_item_id" in df.columns:
         df["sp_id"] = df["_sp_item_id"]
-    return df.rename(columns={k: v for k, v in GRAPH_MAP.items() if k in df.columns})
+    out = df.rename(columns={k: v for k, v in GRAPH_MAP.items() if k in df.columns})
+    # The List stores % Complete as a 0-1 fraction; the rest of the app works in
+    # 0-100. Scale up on read so pacing, progress bars and the form all agree.
+    if "pct_complete" in out.columns:
+        pct = pd.to_numeric(out["pct_complete"], errors="coerce")
+        out.loc[pct.notna(), "pct_complete"] = pct[pct.notna()] * 100
+    return out

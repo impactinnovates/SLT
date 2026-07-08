@@ -14,6 +14,11 @@
     <div class="fld"><label>Owner</label><input name="owner" value="{{ user.name }}"></div>
     <div class="fld"><label>% Complete</label><input type="number" name="pct_complete" min="0" max="100" value="0"></div>
   </div>
+  <div class="frow">
+    <div class="fld"><label>Start Date</label><input type="date" name="start_date"></div>
+    <div class="fld"><label>Target Completion</label><input type="date" name="target_completion"></div>
+    <div class="fld"><label>Region</label><input name="region"></div>
+  </div>
   <div class="frow"><div class="fld"><label>Next Action</label><textarea name="next_action" rows="2"></textarea></div></div>
   <div class="frow">
     <div class="fld"><label>Forecast Revenue</label><input name="forecasted_revenue"></div>
@@ -24,7 +29,8 @@
   <a class="btn ghost" href="/initiatives">Cancel</a>
 </form>
 <div class="muted" style="margin-top:10px">
-  {% if source_label == 'live' %}Saved to the live List once write-back is enabled; staged locally until then.
+  {% if source_label == 'live' and writes %}Saved directly to the SharePoint List.
+  {% elif source_label == 'live' %}Staged locally; writes to the List once write-back is enabled.
   {% else %}Staged in the local overlay (the app is on the CSV export right now).{% endif %}
 </div>
 {% endblock %}

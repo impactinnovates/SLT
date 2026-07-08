@@ -243,7 +243,9 @@ def timeline():
 @app.route("/new")
 @auth.require_role("SLT")
 def new_initiative():
-    return render_template("new.html", nav="new", statuses=STATUSES)
+    src = "live" if settings.graph_is_configured() else "csv"
+    return render_template("new.html", nav="new", statuses=STATUSES,
+                           source_label=src, writes=settings.LIST_WRITE_ENABLED)
 
 
 # ── SLT: board report (print/PDF-friendly) ──────────────────────────────────
@@ -293,6 +295,12 @@ def _editable(f) -> dict:
                   "forecasted_revenue", "forecasted_ebitda", "forecasted_cost"):
             if f.get(k) is not None:
                 out[k] = parse_currency(f.get(k))
+        # Dates: capture the raw input; loader._to_graph_fields formats for the List.
+        for k in ("start_date", "target_completion", "revised_completion",
+                  "actual_completion", "benefit_start_date"):
+            v = (f.get(k) or "").strip()
+            if v:
+                out[k] = v
     return out
 
 

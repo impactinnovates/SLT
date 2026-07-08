@@ -133,11 +133,57 @@ def _apply_overlay(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── Writes ──────────────────────────────────────────────────────────────────
+_GRAPH_DATE_FIELDS = {"start_date", "target_completion", "revised_completion",
+                      "actual_completion", "benefit_start_date"}
+
+
+def _iso_date(v):
+    """Format a date for the List: ISO 8601 at noon UTC (noon avoids the date
+    rolling back a day across US time zones). Accepts a date, a 'YYYY-MM-DD' HTML
+    date input, or common US formats. None if unparseable."""
+    from datetime import date as _date, datetime as _dt
+    if isinstance(v, _date):                     # date (and datetime subclass)
+        return v.strftime("%Y-%m-%dT12:00:00Z")
+    s = str(v).strip()
+    if not s:
+        return None
+    if "T" in s:                                 # already ISO
+        s = s.split("T", 1)[0]
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return _dt.strptime(s, fmt).strftime("%Y-%m-%dT12:00:00Z")
+        except ValueError:
+            continue
+    return None
+
+
+def _to_graph_fields(fields: dict) -> dict:
+    """Map internal field names -> SharePoint columns for write-back, converting
+    each value to what the List stores: dates as ISO 8601, and % Complete as a
+    0-1 fraction (the app works in 0-100). Empty / unmapped values are dropped."""
+    out = {}
+    for k, v in fields.items():
+        if k.startswith("_") or k not in INTERNAL_TO_GRAPH:
+            continue
+        if v is None or (isinstance(v, str) and not v.strip()):
+            continue
+        if k in _GRAPH_DATE_FIELDS:
+            v = _iso_date(v)
+            if v is None:
+                continue
+        elif k == "pct_complete":
+            try:
+                v = round(float(v) / 100.0, 4)
+            except (TypeError, ValueError):
+                continue
+        out[INTERNAL_TO_GRAPH[k]] = v
+    return out
+
+
 def _live_write(sp_id, fields: dict) -> bool:
     """Push an update to the List via Graph, mapping internal -> SharePoint
     column names. Returns True on success. Only reached when writes are enabled."""
-    graph_fields = {INTERNAL_TO_GRAPH[k]: v for k, v in fields.items()
-                    if k in INTERNAL_TO_GRAPH and not k.startswith("_")}
+    graph_fields = _to_graph_fields(fields)
     if not graph_fields:
         return False
     from data.graph_client import get_graph_client
@@ -163,10 +209,8 @@ def update_initiative(item_id: str, fields: dict, sp_id=None) -> bool:
 def create_initiative(fields: dict) -> bool:
     try:
         if settings.LIST_WRITE_ENABLED and settings.graph_is_configured():
-            graph_fields = {INTERNAL_TO_GRAPH[k]: v for k, v in fields.items()
-                            if k in INTERNAL_TO_GRAPH}
             from data.graph_client import get_graph_client
-            get_graph_client().create_item(graph_fields)
+            get_graph_client().create_item(_to_graph_fields(fields))
         else:
             new_id = f"new_{uuid.uuid4().hex[:8]}"
             edits = _load_edits()
