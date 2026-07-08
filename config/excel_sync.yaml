@@ -9,21 +9,23 @@ sources:
     drive_id: "b!JzZoPhASkUO8Q0nUmWN3QY-zcKtaUZpGna_GJGeu3lWkXCbFYHNnTL-012l8CPHV"
     item_id:  "01ZSZVXRBEFHBTATMORJGJ2GPESPKNN4Z7"
     sheet:    "Sheet1"
-    id_column:    "AV"     # List ID tag (Chad maintains this)
-    value_column: "X"      # FY26 Actual Realized Savings ($ thousands)
-    multiplier:   1000     # tracker is $k; List stores full dollars
+    id_column:     "AV"    # List ID tag (Chad maintains this)
+    value_column:  "X"     # FY26 Actual Realized Savings ($ thousands)
+    budget_column: "AL"    # FY26 Budgeted Savings ($ thousands)
+    multiplier:    1000    # tracker is $k; List stores full dollars
   - name: "2026 Cost Takeout Tracker (EMEA)"
     drive_id: "b!JzZoPhASkUO8Q0nUmWN3QY-zcKtaUZpGna_GJGeu3lWkXCbFYHNnTL-012l8CPHV"
     item_id:  "01ZSZVXRBERTZY6XCZYBFKZC4ACW7O2JBM"
     sheet:    "Sheet1"
-    id_column:    "AV"
-    value_column: "X"
-    multiplier:   1000
+    id_column:     "AV"
+    value_column:  "X"
+    budget_column: "AL"
+    multiplier:    1000
 
 writes:
-  realized_field: "realized_ebitda"   # <- sum(value) * multiplier
+  realized_field: "realized_ebitda"   # <- sum(value_column) * multiplier
+  budget_field:   "forecasted_ebitda" # <- sum(budget_column) * multiplier (Excel is source of truth)
   pct_field:      "pct_complete"      # <- realized / budget (fraction; real, uncapped)
-  budget_field:   "forecasted_ebitda"
   pct_cap:        null                # keep the real math; show >100% when over budget
   stamp_field:    "last_updated_by"
   stamp_label:    "Cost Takeout Sync" # written with a timestamp, e.g. "... 2026-07-08 16:40"
