@@ -26,9 +26,14 @@ def pace_score(
     Returns pace score (0.0+). None if insufficient data.
     """
     today = today or date.today()
-    if not all([realized is not None, forecasted, start, target]):
+    # Guard against NaN (staged rows without dates/financials come through as
+    # float NaN, which is truthy and slips past a plain `all([...])` check, then
+    # crashes the date math with "'float' object has no attribute 'days'").
+    if realized is None or pd.isna(realized):
         return None
-    if forecasted == 0:
+    if not forecasted or pd.isna(forecasted):
+        return None
+    if not isinstance(start, date) or not isinstance(target, date):
         return None
     total_days   = (target - start).days
     elapsed_days = (today - start).days
@@ -68,7 +73,9 @@ def projected_eoy(
 ) -> Optional[float]:
     """Extrapolate realized value to full project period."""
     today = today or date.today()
-    if not all([realized is not None, start, target]):
+    if realized is None or pd.isna(realized):
+        return None
+    if not isinstance(start, date) or not isinstance(target, date):
         return None
     elapsed = (today - start).days
     total   = (target - start).days
@@ -79,7 +86,7 @@ def projected_eoy(
 
 def days_remaining(target: Optional[date], today: date = None) -> Optional[int]:
     today = today or date.today()
-    if not target:
+    if not isinstance(target, date):
         return None
     return (target - today).days
 
@@ -90,7 +97,7 @@ def pct_time_elapsed(
     today: date = None,
 ) -> Optional[float]:
     today = today or date.today()
-    if not all([start, target]):
+    if not isinstance(start, date) or not isinstance(target, date):
         return None
     total   = (target - start).days
     elapsed = (today - start).days
