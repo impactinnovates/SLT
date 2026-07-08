@@ -147,12 +147,18 @@ def parse_pct(val: str) -> Optional[float]:
 
 
 def parse_date(val: str) -> Optional[date]:
-    if not val or str(val).strip() == "0" or str(val).strip() == "":
+    s = str(val).strip()
+    if not s or s == "0":
         return None
     from datetime import datetime
+    # The live List (Graph) returns ISO 8601 datetimes like "2026-01-01T08:00:00Z";
+    # the CSV export uses plain dates. Take the date part before any time component
+    # so both sources parse (without this, every List date became None).
+    if "T" in s:
+        s = s.split("T", 1)[0]
     for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%y"):
         try:
-            return datetime.strptime(str(val).strip(), fmt).date()
+            return datetime.strptime(s, fmt).date()
         except ValueError:
             continue
     return None
