@@ -46,7 +46,8 @@ def _col(letter: str) -> int:
 
 def _num(v):
     try:
-        return float(v)
+        f = float(v)
+        return None if f != f else f      # treat NaN as missing (NaN != NaN)
     except (TypeError, ValueError):
         return None
 
@@ -96,10 +97,13 @@ def compute_updates(cfg: dict | None = None):
         realized = round(g["sum"])
         budget = _num(ini.get(w["budget_field"])) if ini is not None else None
         pct = None
-        if budget:
+        if budget and budget > 0:
             pct = realized / budget
             if cap is not None:
                 pct = min(pct, cap)
+        elif ini is not None:
+            # $0 (or unset) budget => all upside: any realized savings is 100%.
+            pct = 1.0 if realized > 0 else 0.0
         updates.append({
             "id": key, "found": ini is not None, "rows": g["n"],
             "name": (ini["name"] if ini is not None else "(id not in List)"),
