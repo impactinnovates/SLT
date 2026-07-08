@@ -12,7 +12,13 @@ sources:
     id_column:    "AV"     # List ID tag (Chad maintains this)
     value_column: "X"      # FY26 Actual Realized Savings ($ thousands)
     multiplier:   1000     # tracker is $k; List stores full dollars
-  # EMEA tracker will be added here once its AV (List ID) column is filled in.
+  - name: "2026 Cost Takeout Tracker (EMEA)"
+    drive_id: "b!JzZoPhASkUO8Q0nUmWN3QY-zcKtaUZpGna_GJGeu3lWkXCbFYHNnTL-012l8CPHV"
+    item_id:  "01ZSZVXRBERTZY6XCZYBFKZC4ACW7O2JBM"
+    sheet:    "Sheet1"
+    id_column:    "AV"
+    value_column: "X"
+    multiplier:   1000
 
 writes:
   realized_field: "realized_ebitda"   # <- sum(value) * multiplier
