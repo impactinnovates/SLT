@@ -50,35 +50,43 @@ CSV_MAP = {
 TYPE_INITIATIVE = "Initiative"
 TYPE_TASK       = "Task"
 
-# SharePoint Graph field names → internal
+# SharePoint Graph field names → internal.
+# Reconciled against the live List via probe_list_connection.py (2026-07-08).
+# The List uses SharePoint's auto-generated internal names (field_N and encoded
+# names), NOT friendly ones — do NOT "tidy" these keys, they must match the
+# List's internal column names exactly. Gaps in the field_N sequence (11, 17,
+# 25-27) are columns that were deleted in SharePoint.
 GRAPH_MAP = {
-    "Title":                     "name",
-    "Sponsor":                   "sponsor",
-    "Owner":                     "owner",
-    "Region":                    "region",
-    "Category":                  "category",
-    "Priority":                  "priority",
-    "Description":               "description",
-    "Status":                    "status",
-    "PercentComplete":           "pct_complete",
-    "CompletedActions":          "completed_actions",
-    "NextAction":                "next_action",
-    "Blockers":                  "blockers",
-    "StartDate":                 "start_date",
-    "TargetCompletion":          "target_completion",
-    "RevisedCompletion":         "revised_completion",
-    "ActualCompletion":          "actual_completion",
-    "ForecastedCost":            "forecasted_cost",
-    "RealizedCost":              "realized_cost",
-    "ForecastedRevenueImpact":   "forecasted_revenue",
-    "RealizedRevenueToDate":     "realized_revenue",
-    "ForecastedEBITDAImpact":    "forecasted_ebitda",
-    "RealizedEBITDAToDate":      "realized_ebitda",
-    "BenefitStartDate":          "benefit_start_date",
-    "ProjectLink":               "project_link",
-    "ParentID":                  "parent_id",   # reconcile internal name via probe
-    "TaskInitiative":            "task_type",    # reconcile internal name via probe
-    "id":                        "sp_id",   # SharePoint item ID for write-back
+    "Title":                  "name",           # display: Initiative Name (Title)
+    "Task_x002f_Initiative":  "task_type",      # display: Task/Initiative
+    "field_1":                "category",
+    "field_2":                "owner",
+    "field_3":                "sponsor",
+    "field_4":                "priority",
+    "field_5":                "region",
+    "field_6":                "description",
+    "field_7":                "status",
+    "field_8":                "pct_complete",
+    "field_9":                "completed_actions",
+    "field_10":               "next_action",
+    "field_12":               "blockers",
+    "field_13":               "start_date",
+    "field_14":               "target_completion",
+    "field_15":               "revised_completion",
+    "field_16":               "actual_completion",
+    "field_18":               "forecasted_cost",
+    "field_19":               "realized_cost",
+    "field_20":               "forecasted_revenue",
+    "field_21":               "realized_revenue",
+    "field_22":               "forecasted_ebitda",
+    "field_23":               "realized_ebitda",
+    "field_24":               "benefit_start_date",
+    "field_28":               "last_updated_by",
+    "ProjectLink":            "project_link",
+    "ParentID":               "parent_id",
+    # NOTE: deliberately NOT mapping "id" -> "sp_id". source._from_graph already
+    # sets sp_id from _sp_item_id; mapping "id" here too produced a DUPLICATE
+    # "sp_id" column (a DataFrame, not a Series) that crashed _clean_df.
 }
 
 # Reverse map for writing back to SharePoint
