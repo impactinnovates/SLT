@@ -21,6 +21,10 @@ logs/
 data/edits.json
 data/sub_initiatives.json
 
+# local diagnostic / scratch scripts
+_*.py
+draft_excel_mapping.py
+
 # OS / editor
 .DS_Store
 Thumbs.db

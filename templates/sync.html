@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Savings Sync <span class="muted">· 2026 Cost Takeout Tracker → List</span></h1>
+<div class="muted">
+  Reads the tracker (column AV = List ID, summed where shared) and writes each initiative's
+  <b>Realized EBITDA</b> (col X × 1000), <b>% Complete</b> (realized ÷ budget, real/uncapped),
+  and <b>Last Updated By</b> (a timestamped sync stamp). This preview is read-only - nothing is
+  written until you click a Sync button.
+</div>
+
+{% if err %}
+  <div class="callout block" style="margin-top:12px"><div class="h">Could not read the tracker</div>{{ err }}</div>
+{% elif updates %}
+  <div style="display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap">
+    <form hx-post="/api/sync/cost-takeout" hx-target="#result" hx-swap="innerHTML"
+          hx-confirm="Write Realized EBITDA, % Complete, and Last Updated By to the LIVE List for all {{ updates|length }} initiatives below?">
+      <button class="btn primary" type="submit">Sync all {{ updates|length }} to the List</button>
+    </form>
+    <span class="muted">or use “Apply one” on any row for a supervised single write.</span>
+  </div>
+
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>ID</th><th>Initiative</th><th class="num">rows</th>
+      <th class="num">Realized EBITDA (old → new)</th><th class="num">% Complete</th>
+      <th>Last Updated By</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for u in updates %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.name }}{% if not u.found %} <span class="pill" style="background:#fdecec;color:#a32b2d">not in List</span>{% endif %}</td>
+        <td class="num">{{ u.rows }}</td>
+        <td class="num">{{ u.realized_old|currency }} → <b>{{ u.realized_new|currency }}</b></td>
+        <td class="num">{% if u.pct_new is not none %}{{ (u.pct_new*100)|round|int }}%{% else %}-{% endif %}</td>
+        <td class="muted">{{ u.stamp }}</td>
+        <td>
+          {% if u.found %}
+          <form hx-post="/api/sync/cost-takeout" hx-target="#result" hx-swap="innerHTML"
+                hx-confirm="Write initiative {{ u.id }} ({{ u.name }}) to the live List?">
+            <input type="hidden" name="only" value="{{ u.id }}">
+            <button class="btn ghost" type="submit">Apply one</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div id="result" style="margin-top:14px"></div>
+{% else %}
+  <div class="panel muted" style="padding:14px">No tagged rows found in the tracker (check the AV column has List IDs).</div>
+{% endif %}
+{% endblock %}
