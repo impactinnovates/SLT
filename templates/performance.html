@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set verdict = {'up':['On Track to Forecast','#2f8f3e'],'side':['At Risk','#d97706'],'down':['Behind Forecast','#cc4749'],'none':['No forecast data','#64748b']} %}
+{% block content %}
+<h1>EBITDA Performance</h1>
+<div class="muted">Pace-aware rating: realized savings vs where we should be at {{ year_pct }}% of the year elapsed.</div>
+
+{{ m.filter_bar(options, args) }}
+
+{% set v = verdict.get(overall.thumb, verdict['none']) %}
+<div class="hero" style="border-color:{{ v[1] }}55">
+  {{ m.thumb(overall.thumb, 96) }}
+  <div class="hero-txt">
+    <div class="hero-verdict" style="color:{{ v[1] }}">{{ v[0] }}</div>
+    <div class="hero-nums">{{ overall.realized|currency }} <span class="muted">realized of</span> {{ overall.forecast|currency }} <span class="muted">forecast</span></div>
+    <div class="muted">
+      {% if overall.attainment is not none %}{{ (overall.attainment*100)|round|int }}% of full-year forecast{% endif %}
+      {% if overall.pace is not none %} &middot; pace {{ (overall.pace*100)|round|int }}% <span style="font-size:11px">(100% = on track for today)</span>{% endif %}
+      &middot; {{ overall.n }} initiatives
+    </div>
+  </div>
+</div>
+
+<div class="dimtoggle">
+  <span class="muted" style="font-weight:700">Reassess by:</span>
+  {% for key, lab in [('region','Region'),('sponsor','Sponsor'),('owner','Owner')] %}
+    <a class="btn {{ 'primary' if by==key else 'ghost' }}" href="?by={{ key }}{% if args.get('q') %}&q={{ args.get('q') }}{% endif %}">{{ lab }}</a>
+  {% endfor %}
+</div>
+
+<div class="perfgrid">
+  {% for g in groups %}
+  {% set gv = verdict.get(g.thumb, verdict['none']) %}
+  <div class="perfcard" style="border-left-color:{{ gv[1] }}">
+    <div class="perfcard-h">{{ m.thumb(g.thumb, 30) }}<span class="pl">{{ g.label }}</span></div>
+    <div class="perfcard-n">{{ g.realized|currency }} <span class="muted">/ {{ g.forecast|currency }}</span></div>
+    {% if g.attainment is not none %}
+      <div class="finbar"><i style="width:{{ [g.attainment*100, 100]|min }}%;background:{{ gv[1] }}"></i></div>
+      <div class="muted" style="font-size:11px">{{ (g.attainment*100)|round|int }}% of forecast · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+    {% else %}
+      <div class="muted" style="font-size:11px">all upside · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="panel muted" style="padding:14px">No financial data to rate by {{ by }}.</div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .hero{display:flex;align-items:center;gap:20px;background:var(--card);border:2px solid #ccc;
+        border-radius:14px;padding:18px 22px;margin:12px 0;box-shadow:var(--shadow)}
+  .hero-verdict{font-size:24px;font-weight:800;font-family:var(--font);line-height:1.1}
+  .hero-nums{font-size:16px;font-weight:700;color:var(--text);margin:4px 0 2px}
+  .dimtoggle{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 8px}
+  .perfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .perfcard{background:var(--card);border:1px solid var(--border);border-left:4px solid #ccc;
+            border-radius:10px;padding:11px 13px;box-shadow:var(--shadow)}
+  .perfcard-h{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .perfcard-h .pl{font-weight:700;font-size:13.5px;color:var(--text)}
+  .perfcard-n{font-size:15px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+  .perfcard .finbar{height:8px;background:var(--panelHi);border-radius:99px;overflow:hidden;margin:6px 0}
+  .perfcard .finbar>i{display:block;height:100%;border-radius:99px}
+  @media(max-width:600px){ .hero{flex-direction:column;text-align:center;gap:10px} }
+</style>
+{% endblock %}

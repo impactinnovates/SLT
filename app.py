@@ -256,6 +256,24 @@ def financial():
                            options=_options(inits), args=request.args)
 
 
+@app.route("/performance")
+@auth.require_role("SLT")
+def performance():
+    from utils import performance as perf
+    inits, _ = _hierarchy()
+    inits = _apply_filters(inits)
+    fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
+        if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
+    yf = perf.year_fraction()
+    overall = perf.summarize(fin, yf)
+    by = request.args.get("by", "region")
+    dim = by if by in ("region", "sponsor", "owner") else "region"
+    groups = perf.by_dimension(fin, dim, yf)
+    return render_template("performance.html", nav="performance", overall=overall,
+                           groups=groups, by=dim, year_pct=round(yf * 100),
+                           options=_options(inits), args=request.args)
+
+
 @app.route("/timeline")
 @auth.require_role("SLT")
 def timeline():
