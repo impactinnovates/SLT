@@ -53,7 +53,9 @@
 <div class="perfgrid">
   {% for g in groups %}
   {% set gv = verdict.get(g.thumb, verdict['none']) %}
-  <div class="perfcard" style="border-left-color:{{ gv[1] }}">
+  {% set tag = 'a' if g.drill else 'div' %}
+  <{{ tag }} class="perfcard" style="border-left-color:{{ gv[1] }}"
+     {% if g.drill %}href="{{ g.drill }}" title="View {{ g.label }} initiatives &rarr;"{% endif %}>
     <div class="perfcard-h">{{ m.thumb(g.thumb, 28) }}<span class="pl">{{ g.label }}</span></div>
     {% if metric == 'progress' %}
       <div class="perfcard-n">{% if g.avg_pct is not none %}{{ g.avg_pct|round|int }}%{% else %}-{% endif %} <span class="muted" style="font-size:12px">avg complete</span></div>
@@ -66,7 +68,7 @@
         <div class="muted" style="font-size:11px">{{ (g.attainment*100)|round|int }}% of forecast &middot; {{ g.n }}</div>
       {% else %}<div class="muted" style="font-size:11px">all upside &middot; {{ g.n }}</div>{% endif %}
     {% endif %}
-  </div>
+  </{{ tag }}>
   {% else %}<div class="panel muted" style="padding:14px">No data to rate by {{ by }}.</div>{% endfor %}
 </div>
 {% endblock %}
@@ -84,6 +86,8 @@
   .perfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
   .perfcard{background:var(--card);border:1px solid var(--border);border-left:4px solid #ccc;
             border-radius:10px;padding:11px 13px;box-shadow:var(--shadow)}
+  a.perfcard{text-decoration:none;color:inherit;display:block;transition:box-shadow .12s,transform .06s}
+  a.perfcard:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
   .perfcard-h{display:flex;align-items:center;gap:9px;margin-bottom:4px}
   .perfcard-h .pl{font-weight:700;font-size:13.5px;color:var(--text)}
   .perfcard-n{font-size:15px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}

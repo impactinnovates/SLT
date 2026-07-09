@@ -237,6 +237,17 @@ def dashboard():
     metric = metric if metric in ("ebitda", "progress") else "ebitda"
     groups = (perf.progress_by_dimension(inits, dim, yf) if metric == "progress"
               else perf.by_dimension(fin, dim, yf))
+    # Each breakdown card drills to the Initiatives list filtered by the current
+    # dashboard filters PLUS this group's dimension value (e.g. region=Clare, MI).
+    from urllib.parse import urlencode
+    keep = {k: request.args.getlist(k) for k in request.args if k not in ("by", "metric", "alerts")}
+    for grp in groups:
+        lbl = grp.get("label")
+        if lbl and lbl != "(unassigned)":
+            a = {**keep, dim: [lbl]}
+            grp["drill"] = "/initiatives?" + urlencode([(k, vv) for k, vs in a.items() for vv in vs])
+        else:
+            grp["drill"] = None
     n_alerts = int(inits.apply(rollup.needs_attention, axis=1).sum()) if not inits.empty else 0
     return render_template("dashboard.html", nav="dashboard", stats=stats, ebitda=ebitda,
                            progress=progress, groups=groups, by=dim, metric=metric,
