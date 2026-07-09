@@ -23,6 +23,7 @@
   <table>
     <thead><tr>
       <th>ID</th><th>Initiative</th><th class="num">rows</th>
+      <th class="num">Budget (old → new)</th>
       <th class="num">Realized EBITDA (old → new)</th><th class="num">% Complete</th>
       <th>Last Updated By</th><th></th>
     </tr></thead>
@@ -32,6 +33,7 @@
         <td>{{ u.id }}</td>
         <td>{{ u.name }}{% if not u.found %} <span class="pill" style="background:#fdecec;color:#a32b2d">not in List</span>{% endif %}</td>
         <td class="num">{{ u.rows }}</td>
+        <td class="num">{{ u.budget_old|currency }} → <b>{{ u.budget_new|currency }}</b></td>
         <td class="num">{{ u.realized_old|currency }} → <b>{{ u.realized_new|currency }}</b></td>
         <td class="num">{% if u.pct_new is not none %}{{ (u.pct_new*100)|round|int }}%{% else %}-{% endif %}</td>
         <td class="muted">{{ u.stamp }}</td>

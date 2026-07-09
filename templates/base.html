@@ -87,7 +87,29 @@
     .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
     .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
     .src.csv{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
+    /* nav: inline on desktop, collapsible drawer on mobile */
+    .navmenu{display:flex;align-items:center;gap:2px;flex:1}
+    .navtoggle{display:none;background:none;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer;margin-left:auto;padding:4px 10px}
     @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.grid2,.grid12{grid-template-columns:1fr}.fin{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:820px){
+      .ieg-nav{flex-wrap:wrap;height:auto;overflow:visible;padding:6px 12px}
+      .navtoggle{display:block}
+      .navmenu{display:none;flex-basis:100%;flex-direction:column;align-items:stretch;gap:0;order:3;margin-top:4px}
+      .navmenu.open{display:flex}
+      .ieg-nav .navmenu a.ieg-link{padding:12px 6px;border-radius:0;border-top:1px solid rgba(255,255,255,.12)}
+      .ieg-nav .ieg-spacer{display:none}
+      .navmenu .src{align-self:flex-start;margin:8px 6px}
+      main table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+    }
+    @media(max-width:600px){
+      main{padding:0 12px 48px}
+      .kpis,.kpis.fin,.fin{grid-template-columns:repeat(2,1fr)}
+      select,input,textarea{font-size:16px}   /* stops iOS zoom-on-focus */
+      .init summary{gap:6px}
+      .init .meta{margin-left:0;flex-basis:100%}
+      .editform .fld{min-width:120px}
+      h1{font-size:18px}
+    }
   </style>
 </head>
 <body>
@@ -96,6 +118,9 @@
       <img src="/static/ieg-logo.png" alt="Impact Environmental Group" class="ieg-logo">
       <span class="sub" style="font-size:15px;font-weight:800;margin-left:2px">Strategic Initiatives</span>
     </a>
+    <button class="navtoggle" aria-label="Menu"
+            onclick="document.getElementById('navmenu').classList.toggle('open')">&#9776;</button>
+    <div class="navmenu" id="navmenu">
     {% if user and user.role == 'SLT' %}
       <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
       <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives</a>
@@ -119,7 +144,9 @@
     {% if user %}
       <a class="ieg-link" href="/auth/logout" title="{{ user.email }}">{{ user.name }} ({{ user.role }}) &nbsp;Sign out</a>
     {% endif %}
+    </div>
   </nav>
+  <datalist id="ieg-people">{% for l in leaders %}<option value="{{ l }}"></option>{% endfor %}</datalist>
   <main>{% block content %}{% endblock %}</main>
 
   <script>

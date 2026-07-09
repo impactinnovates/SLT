@@ -69,22 +69,28 @@ def compute_updates(cfg: dict | None = None):
     cfg = cfg or load_config()
     w = cfg["writes"]
 
-    # Group value by List ID across all configured sources (summing shared ids).
-    groups = defaultdict(lambda: {"sum": 0.0, "n": 0})
+    # Group realized (value_column) and budget (budget_column) by List ID across
+    # all sources, summing rows that share an id.
+    groups = defaultdict(lambda: {"realized": 0.0, "budget": 0.0, "n": 0})
     for src in cfg["sources"]:
         values, text = _read_sheet(src)
         hdr = next((n for n, r in enumerate(text)
                     if any("strategic initiative" in str(c).lower() for c in r)), 0)
         ic, vc = _col(src["id_column"]), _col(src["value_column"])
+        bc = _col(src["budget_column"]) if src.get("budget_column") else None
         mult = src.get("multiplier", 1)
         for r in values[hdr + 1:]:
-            if len(r) <= max(ic, vc):
+            if len(r) <= ic:
                 continue
             lid = _num(r[ic])
             if lid is None:
                 continue
-            groups[str(int(lid))]["sum"] += (_num(r[vc]) or 0) * mult
-            groups[str(int(lid))]["n"] += 1
+            g = groups[str(int(lid))]
+            if len(r) > vc:
+                g["realized"] += (_num(r[vc]) or 0) * mult
+            if bc is not None and len(r) > bc:
+                g["budget"] += (_num(r[bc]) or 0) * mult
+            g["n"] += 1
 
     inits, _ = rollup.split_hierarchy(load_initiatives())
     by_id = {str(x["id"]): x for _, x in inits.iterrows()}
@@ -94,23 +100,23 @@ def compute_updates(cfg: dict | None = None):
     updates = []
     for key, g in groups.items():
         ini = by_id.get(key)
-        realized = round(g["sum"])
-        budget = _num(ini.get(w["budget_field"])) if ini is not None else None
-        pct = None
-        if budget and budget > 0:
+        realized = round(g["realized"])
+        budget = round(g["budget"])            # Excel is source of truth for budget
+        if budget > 0:
             pct = realized / budget
             if cap is not None:
                 pct = min(pct, cap)
-        elif ini is not None:
-            # $0 (or unset) budget => all upside: any realized savings is 100%.
-            pct = 1.0 if realized > 0 else 0.0
+        else:
+            pct = 1.0 if realized > 0 else 0.0  # $0 budget => all upside
         updates.append({
             "id": key, "found": ini is not None, "rows": g["n"],
             "name": (ini["name"] if ini is not None else "(id not in List)"),
             "realized_old": (ini.get(w["realized_field"]) if ini is not None else None),
             "realized_new": realized,
+            "budget_old": (_num(ini.get(w["budget_field"])) if ini is not None else None),
+            "budget_new": budget,
             "pct_old": (ini.get(w["pct_field"]) if ini is not None else None),
-            "pct_new": pct, "budget": budget, "stamp": stamp,
+            "pct_new": pct, "stamp": stamp,
         })
     return sorted(updates, key=lambda u: int(u["id"])), cfg
 
@@ -129,6 +135,7 @@ def apply_updates(updates: list, cfg: dict, only: str | None = None) -> list:
             continue
         fields = {
             INTERNAL_TO_GRAPH[w["realized_field"]]: u["realized_new"],
+            INTERNAL_TO_GRAPH[w["budget_field"]]: u["budget_new"],   # Excel is source of truth
             INTERNAL_TO_GRAPH[w["stamp_field"]]: u["stamp"],
         }
         if u["pct_new"] is not None:
@@ -148,10 +155,10 @@ def _cli():
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1]
     updates, cfg = compute_updates()
-    print(f"{'ID':>5} {'rows':>4} {'realized_old':>13} {'realized_new':>13} {'pct_new':>8}  name")
+    print(f"{'ID':>5} {'rows':>4} {'realized':>11} {'budget':>11} {'pct':>7}  name")
     for u in updates:
         pct = f"{u['pct_new']*100:.0f}%" if u["pct_new"] is not None else "-"
-        print(f"{u['id']:>5} {u['rows']:>4} {str(u['realized_old']):>13} {u['realized_new']:>13,} {pct:>8}  {u['name'][:36]}")
+        print(f"{u['id']:>5} {u['rows']:>4} {u['realized_new']:>11,} {u['budget_new']:>11,} {pct:>7}  {u['name'][:38]}")
     if apply:
         print(f"\nAPPLYING{' (only ' + only + ')' if only else ''} ...")
         for r in apply_updates(updates, cfg, only=only):
