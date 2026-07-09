@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Admin &middot; User Access</h1>
+<div class="muted">Manage who can sign in and at what level. Changes take effect on the person's next sign-in.</div>
+
+<div class="callout" style="margin:12px 0;background:var(--accent-bg);border-left-color:var(--accent)">
+  <div class="h">How access works</div>
+  <b>SLT</b> sees all initiatives, financials, board report and can create/assign anything.
+  <b>Leader</b> sees only tasks they own or assigned to their team - never SLT initiatives or financials.
+  <b>Member</b> sees only tasks assigned to them. Anyone who signs in but isn't listed here is treated as a <b>Member</b> (lowest access).
+</div>
+
+<h2>Set / change a person's role</h2>
+<form class="editform" method="post" action="/api/admin/user" style="max-width:640px">
+  <div class="frow">
+    <div class="fld" style="flex:2"><label>Email (UPN) or display name</label>
+      <input name="identifier" list="ieg-people" placeholder="jane.doe@iegna.com" required style="width:100%"></div>
+    <div class="fld"><label>Role</label>
+      <select name="role">
+        {% for r in roles %}<option>{{ r }}</option>{% endfor %}
+        <option value="">(remove override)</option>
+      </select></div>
+  </div>
+  <button class="btn primary" type="submit">Save</button>
+  <span class="muted" style="font-size:12px">Matching on email is most reliable. "(remove override)" reverts them to the roles.yaml seed (or Member).</span>
+</form>
+
+<h2>Current users <span class="muted">({{ users|length }})</span></h2>
+<div style="overflow-x:auto">
+<table>
+  <thead><tr><th>User</th><th>Role</th><th>Source</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td>{{ u.identifier }}</td>
+      <td><span class="pill" style="background:var(--panelHi)">{{ u.role }}</span></td>
+      <td class="muted">{{ u.source }}</td>
+      <td>
+        <form method="post" action="/api/admin/user" style="display:flex;gap:6px;align-items:center">
+          <input type="hidden" name="identifier" value="{{ u.identifier }}">
+          <select name="role">
+            {% for r in roles %}<option {{ 'selected' if u.role==r }}>{{ r }}</option>{% endfor %}
+          </select>
+          <button class="btn ghost" type="submit">Update</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Administrators</h2>
+<div class="muted">Only these accounts can open this Admin screen. Set via the <code>ADMIN_EMAILS</code> app setting on Azure - it cannot be changed from inside the app (so admin rights can't be escalated here).</div>
+<ul>
+  {% for a in admins %}<li>{{ a }}</li>{% else %}<li class="muted">none configured (ADMIN_EMAILS is empty) - in local dev everyone is admin</li>{% endfor %}
+</ul>
+{% endblock %}

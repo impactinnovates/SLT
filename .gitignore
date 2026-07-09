@@ -20,6 +20,7 @@ logs/
 # so the app has seed data; the overlays below are per-deployment state.
 data/edits.json
 data/sub_initiatives.json
+data/user_roles.json
 
 # local diagnostic / scratch scripts
 _*.py

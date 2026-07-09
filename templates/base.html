@@ -139,6 +139,7 @@
     {% else %}
       <a class="ieg-link {{ 'active' if nav=='tasks' }}" href="/tasks">My Tasks</a>
     {% endif %}
+    {% if is_admin %}<a class="ieg-link {{ 'active' if nav=='admin' }}" href="/admin">&#9881; Admin</a>{% endif %}
     <span class="ieg-spacer"></span>
     {% if not auth_enabled %}
       <span style="color:rgba(255,255,255,.6);font-size:11px">preview:</span>
