@@ -202,15 +202,17 @@ def dashboard():
     att = inits[inits.apply(rollup.needs_attention, axis=1)].copy()
     att["_sev"] = att["status"].map(SEV).fillna(9)
     att = att.sort_values(["_sev", "name"])
-    charts = {"donut": _fig(fc.status_donut(inits)),
-              "ebitda": _fig(fc.ebitda_pacing_bar(inits)),
-              "revenue": _fig(fc.revenue_pacing_bar(inits)),
-              "cost": _fig(fc.cost_pacing_bar(inits))}
-    return render_template("dashboard.html", nav="dashboard", stats=stats,
-                           attention=att.to_dict("records"),
+    from utils import performance as perf
+    yf = perf.year_fraction()
+    fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
+        if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
+    ebitda = perf.summarize(fin, yf)
+    progress = perf.progress_summary(inits, yf)
+    return render_template("dashboard.html", nav="dashboard", stats=stats, ebitda=ebitda,
+                           progress=progress, attention=att.to_dict("records"),
                            tasks_by_parent=_tasks_by_parent(tasks),
-                           charts=charts, options=_options(inits), args=request.args,
-                           task_total=len(tasks))
+                           donut=_fig(fc.status_donut(inits)),
+                           options=_options(inits), args=request.args, task_total=len(tasks))
 
 
 # ── SLT: initiatives with task breakdown ────────────────────────────────────
@@ -265,13 +267,17 @@ def performance():
     fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
         if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
     yf = perf.year_fraction()
-    overall = perf.summarize(fin, yf)
+    ebitda = perf.summarize(fin, yf)
+    progress = perf.progress_summary(inits, yf)
     by = request.args.get("by", "region")
     dim = by if by in ("region", "sponsor", "owner") else "region"
-    groups = perf.by_dimension(fin, dim, yf)
-    return render_template("performance.html", nav="performance", overall=overall,
-                           groups=groups, by=dim, year_pct=round(yf * 100),
-                           options=_options(inits), args=request.args)
+    metric = request.args.get("metric", "ebitda")
+    metric = metric if metric in ("ebitda", "progress") else "ebitda"
+    groups = (perf.progress_by_dimension(inits, dim, yf) if metric == "progress"
+              else perf.by_dimension(fin, dim, yf))
+    return render_template("performance.html", nav="performance", ebitda=ebitda,
+                           progress=progress, groups=groups, by=dim, metric=metric,
+                           year_pct=round(yf * 100), options=_options(inits), args=request.args)
 
 
 @app.route("/timeline")

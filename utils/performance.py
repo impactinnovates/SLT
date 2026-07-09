@@ -64,8 +64,11 @@ def summarize(df, yf: float) -> dict:
     return out
 
 
+_ORDER = {"down": 0, "side": 1, "up": 2, "none": 3}
+
+
 def by_dimension(df, dim: str, yf: float) -> list:
-    """One rated summary per group in `dim`, worst pace first."""
+    """One EBITDA-rated summary per group in `dim`, worst pace first."""
     if dim not in df.columns:
         return []
     keys = df[dim].replace("", "(unassigned)").fillna("(unassigned)")
@@ -74,7 +77,41 @@ def by_dimension(df, dim: str, yf: float) -> list:
         s = summarize(g, yf)
         s["label"] = str(val)
         groups.append(s)
-    # Worst first (down < side < up), then by pace, so problems surface at the top.
-    order = {"down": 0, "side": 1, "up": 2, "none": 3}
-    return sorted(groups, key=lambda x: (order.get(x["thumb"], 9),
+    return sorted(groups, key=lambda x: (_ORDER.get(x["thumb"], 9),
+                                         x["pace"] if x["pace"] is not None else 99))
+
+
+# ── Progress-by-volume gauge (the mirror thumb) ─────────────────────────────
+# Rates execution across the COUNT of projects, not dollars: average % complete
+# vs the fraction of the year elapsed. Includes projects with no EBITDA impact,
+# so you can tell whether work is moving even when the financial number lags.
+def progress_summary(df, yf: float) -> dict:
+    if df.empty:
+        return {"thumb": "none", "avg_pct": None, "pace": None,
+                "expected_pct": round(yf * 100), "n": 0}
+    avg = float(df["pct_complete"].apply(_num).mean()) if "pct_complete" in df else 0.0
+    expected = yf * 100
+    pace = avg / expected if expected > 0 else None
+    if pace is None:
+        thumb = "none"
+    elif pace >= ON:
+        thumb = "up"
+    elif pace >= AT:
+        thumb = "side"
+    else:
+        thumb = "down"
+    return {"thumb": thumb, "avg_pct": avg, "pace": pace,
+            "expected_pct": round(expected), "n": len(df)}
+
+
+def progress_by_dimension(df, dim: str, yf: float) -> list:
+    if dim not in df.columns:
+        return []
+    keys = df[dim].replace("", "(unassigned)").fillna("(unassigned)")
+    groups = []
+    for val, g in df.groupby(keys):
+        s = progress_summary(g, yf)
+        s["label"] = str(val)
+        groups.append(s)
+    return sorted(groups, key=lambda x: (_ORDER.get(x["thumb"], 9),
                                          x["pace"] if x["pace"] is not None else 99))

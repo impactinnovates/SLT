@@ -1,31 +1,43 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
-{% set verdict = {'up':['On Track to Forecast','#2f8f3e'],'side':['At Risk','#d97706'],'down':['Behind Forecast','#cc4749'],'none':['No forecast data','#64748b']} %}
+{% set verdict = {'up':['On Pace','#2f8f3e'],'side':['At Risk','#d97706'],'down':['Behind Pace','#cc4749'],'none':['No data','#64748b']} %}
+{% set qtail = ('&q=' + args.get('q')) if args.get('q') else '' %}
 {% block content %}
-<h1>EBITDA Performance</h1>
-<div class="muted">Pace-aware rating: realized savings vs where we should be at {{ year_pct }}% of the year elapsed.</div>
+<h1>Performance</h1>
+<div class="muted">Pace-aware read at {{ year_pct }}% of the year: EBITDA by dollars, and progress by project volume.</div>
 
 {{ m.filter_bar(options, args) }}
 
-{% set v = verdict.get(overall.thumb, verdict['none']) %}
-<div class="hero" style="border-color:{{ v[1] }}55">
-  {{ m.thumb(overall.thumb, 96) }}
-  <div class="hero-txt">
-    <div class="hero-verdict" style="color:{{ v[1] }}">{{ v[0] }}</div>
-    <div class="hero-nums">{{ overall.realized|currency }} <span class="muted">realized of</span> {{ overall.forecast|currency }} <span class="muted">forecast</span></div>
-    <div class="muted">
-      {% if overall.attainment is not none %}{{ (overall.attainment*100)|round|int }}% of full-year forecast{% endif %}
-      {% if overall.pace is not none %} &middot; pace {{ (overall.pace*100)|round|int }}% <span style="font-size:11px">(100% = on track for today)</span>{% endif %}
-      &middot; {{ overall.n }} initiatives
+<div class="grid2">
+  {% set ev = verdict.get(ebitda.thumb, verdict['none']) %}
+  <div class="hero" style="border-color:{{ ev[1] }}55">
+    {{ m.thumb(ebitda.thumb, 84) }}
+    <div class="hero-txt">
+      <div class="gauge-lab">EBITDA &middot; dollars</div>
+      <div class="hero-verdict" style="color:{{ ev[1] }}">{{ ev[0] }}</div>
+      <div class="hero-nums">{{ ebitda.realized|currency }} <span class="muted">of</span> {{ ebitda.forecast|currency }}</div>
+      <div class="muted">{% if ebitda.attainment is not none %}{{ (ebitda.attainment*100)|round|int }}% of forecast{% endif %}{% if ebitda.pace is not none %} &middot; pace {{ (ebitda.pace*100)|round|int }}%{% endif %} &middot; {{ ebitda.n }} initiatives</div>
+    </div>
+  </div>
+  {% set pv = verdict.get(progress.thumb, verdict['none']) %}
+  <div class="hero" style="border-color:{{ pv[1] }}55">
+    {{ m.thumb(progress.thumb, 84) }}
+    <div class="hero-txt">
+      <div class="gauge-lab">Progress &middot; by volume</div>
+      <div class="hero-verdict" style="color:{{ pv[1] }}">{{ pv[0] }}</div>
+      <div class="hero-nums">{% if progress.avg_pct is not none %}{{ progress.avg_pct|round|int }}%{% endif %} <span class="muted">avg complete</span></div>
+      <div class="muted">{{ progress.n }} projects &middot; ~{{ progress.expected_pct }}% expected by now</div>
     </div>
   </div>
 </div>
 
 <div class="dimtoggle">
-  <span class="muted" style="font-weight:700">Reassess by:</span>
+  <span class="muted" style="font-weight:700">Break down by</span>
+  {% for key, lab in [('ebitda','EBITDA $'),('progress','Progress')] %}
+    <a class="btn {{ 'primary' if metric==key else 'ghost' }}" href="?metric={{ key }}&by={{ by }}{{ qtail }}">{{ lab }}</a>{% endfor %}
+  <span class="muted" style="font-weight:700;margin-left:12px">across</span>
   {% for key, lab in [('region','Region'),('sponsor','Sponsor'),('owner','Owner')] %}
-    <a class="btn {{ 'primary' if by==key else 'ghost' }}" href="?by={{ key }}{% if args.get('q') %}&q={{ args.get('q') }}{% endif %}">{{ lab }}</a>
-  {% endfor %}
+    <a class="btn {{ 'primary' if by==key else 'ghost' }}" href="?by={{ key }}&metric={{ metric }}{{ qtail }}">{{ lab }}</a>{% endfor %}
 </div>
 
 <div class="perfgrid">
@@ -33,26 +45,33 @@
   {% set gv = verdict.get(g.thumb, verdict['none']) %}
   <div class="perfcard" style="border-left-color:{{ gv[1] }}">
     <div class="perfcard-h">{{ m.thumb(g.thumb, 30) }}<span class="pl">{{ g.label }}</span></div>
-    <div class="perfcard-n">{{ g.realized|currency }} <span class="muted">/ {{ g.forecast|currency }}</span></div>
-    {% if g.attainment is not none %}
-      <div class="finbar"><i style="width:{{ [g.attainment*100, 100]|min }}%;background:{{ gv[1] }}"></i></div>
-      <div class="muted" style="font-size:11px">{{ (g.attainment*100)|round|int }}% of forecast · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+    {% if metric == 'progress' %}
+      <div class="perfcard-n">{% if g.avg_pct is not none %}{{ g.avg_pct|round|int }}%{% else %}-{% endif %} <span class="muted" style="font-size:12px">avg complete</span></div>
+      {% if g.avg_pct is not none %}<div class="finbar"><i style="width:{{ [g.avg_pct, 100]|min }}%;background:{{ gv[1] }}"></i></div>{% endif %}
+      <div class="muted" style="font-size:11px">{{ g.n }} project{{ 's' if g.n != 1 }} · ~{{ g.expected_pct }}% expected</div>
     {% else %}
-      <div class="muted" style="font-size:11px">all upside · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+      <div class="perfcard-n">{{ g.realized|currency }} <span class="muted">/ {{ g.forecast|currency }}</span></div>
+      {% if g.attainment is not none %}
+        <div class="finbar"><i style="width:{{ [g.attainment*100, 100]|min }}%;background:{{ gv[1] }}"></i></div>
+        <div class="muted" style="font-size:11px">{{ (g.attainment*100)|round|int }}% of forecast · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+      {% else %}
+        <div class="muted" style="font-size:11px">all upside · {{ g.n }} initiative{{ 's' if g.n != 1 }}</div>
+      {% endif %}
     {% endif %}
   </div>
   {% else %}
-  <div class="panel muted" style="padding:14px">No financial data to rate by {{ by }}.</div>
+  <div class="panel muted" style="padding:14px">No data to rate by {{ by }}.</div>
   {% endfor %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <style>
-  .hero{display:flex;align-items:center;gap:20px;background:var(--card);border:2px solid #ccc;
-        border-radius:14px;padding:18px 22px;margin:12px 0;box-shadow:var(--shadow)}
-  .hero-verdict{font-size:24px;font-weight:800;font-family:var(--font);line-height:1.1}
-  .hero-nums{font-size:16px;font-weight:700;color:var(--text);margin:4px 0 2px}
+  .hero{display:flex;align-items:center;gap:18px;background:var(--card);border:2px solid #ccc;
+        border-radius:14px;padding:16px 20px;box-shadow:var(--shadow)}
+  .gauge-lab{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .hero-verdict{font-size:22px;font-weight:800;line-height:1.1}
+  .hero-nums{font-size:15px;font-weight:700;color:var(--text);margin:3px 0 2px}
   .dimtoggle{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 8px}
   .perfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
   .perfcard{background:var(--card);border:1px solid var(--border);border-left:4px solid #ccc;
