@@ -144,7 +144,7 @@
     {% if not auth_enabled %}
       <span style="color:rgba(255,255,255,.6);font-size:11px">preview:</span>
       {% for r in ['SLT','Leader','Member'] %}
-        <a class="ieg-link {{ 'active' if user and user.role==r }}" href="?as={{ r }}"
+        <a class="ieg-link {{ 'active' if user and user.role==r }}" href="/?as={{ r }}"
            style="padding:5px 8px;font-size:12px">{{ r }}</a>{% endfor %}
     {% endif %}
     <a class="ieg-link" href="/refresh" title="Refresh from the List" style="padding:5px 9px;font-size:15px">&#8635;</a>

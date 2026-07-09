@@ -407,8 +407,27 @@ def tasks_view():
         t["parent_name"] = pname.get(str(t.get("parent_id", "")), "")
         t["subs"] = subs_by_parent.get(str(t.get("id", "")), [])
     can_assign = settings.get_permissions(g.user["role"]).get("assign_task")
+
+    # Scaled-down dashboard over ONLY the user's own tasks (no initiative data).
+    from utils import performance as perf
+    from datetime import date as _date
+
+    def _overdue(t):
+        d = t.get("target_completion")
+        return bool(d and hasattr(d, "year") and d < _date.today() and t.get("status") != "Completed")
+
+    def _cnt(*st):
+        return sum(1 for t in mine_records if t.get("status") in st)
+
+    tstats = {"total": len(mine_records), "not_started": _cnt("Not Started"),
+              "in_progress": _cnt("On Track"),
+              "attention": _cnt("Behind", "At Risk", "Blocked"),
+              "overdue": sum(1 for t in mine_records if _overdue(t)),
+              "done": _cnt("Completed")}
+    tprogress = perf.progress_summary(mine, perf.year_fraction())
     return render_template("tasks.html", nav="tasks", tasks=mine_records,
-                           task_statuses=TASK_STATUSES, can_assign=can_assign)
+                           task_statuses=TASK_STATUSES, can_assign=can_assign,
+                           tstats=tstats, tprogress=tprogress)
 
 
 # ── Write endpoints ─────────────────────────────────────────────────────────

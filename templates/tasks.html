@@ -1,11 +1,30 @@
 {% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set verdict = {'up':['On Pace','#2f8f3e'],'side':['At Risk','#d97706'],'down':['Behind Pace','#cc4749'],'none':['No data','#64748b']} %}
 {% block content %}
-<h1>My Tasks</h1>
-<div class="muted">
-  {% if can_assign %}Tasks assigned to you or your team. Update progress, and break a task into sub-tasks for your people.
-  {% else %}Tasks assigned to you. Update status and progress.{% endif %}
+<h1>My Dashboard</h1>
+<div class="muted">{% if can_assign %}Tasks assigned to you or your team.{% else %}Tasks assigned to you.{% endif %} You only see your own work here.</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="lab">My Tasks</div><div class="n">{{ tstats.total }}</div></div>
+  <div class="kpi" style="border-left-color:#557888"><div class="lab">Not Started</div><div class="n">{{ tstats.not_started }}</div></div>
+  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">In Progress</div><div class="n">{{ tstats.in_progress }}</div></div>
+  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Needs Attention</div><div class="n">{{ tstats.attention }}</div></div>
+  <div class="kpi" style="border-left-color:#d97706"><div class="lab">Overdue</div><div class="n">{{ tstats.overdue }}</div></div>
+  <div class="kpi" style="border-left-color:#0369a1"><div class="lab">Completed</div><div class="n">{{ tstats.done }}</div></div>
 </div>
 
+{% set pv = verdict.get(tprogress.thumb, verdict['none']) %}
+<div class="panel" style="border-left:4px solid {{ pv[1] }};display:flex;align-items:center;gap:14px;margin:10px 0">
+  {{ m.thumb(tprogress.thumb, 58) }}
+  <div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">My progress</div>
+    <div style="font-size:17px;font-weight:800;color:{{ pv[1] }}">{{ pv[0] }}</div>
+    <div class="muted" style="font-size:12px">{% if tprogress.avg_pct is not none %}{{ tprogress.avg_pct|round|int }}% avg complete &middot; {% endif %}~{{ tprogress.expected_pct }}% expected by now</div>
+  </div>
+</div>
+
+<h2>My Tasks</h2>
 {% if tasks %}
   {% for t in tasks %}
   {% set color = status_colors.get(t.status,'#94a3b8') %}
