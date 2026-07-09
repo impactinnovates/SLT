@@ -40,6 +40,10 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
 app.register_blueprint(auth.bp)
 app.before_request(auth.require_login)
 
+# Nightly Cost Takeout Tracker -> List sync (no-op unless SYNC_SCHEDULE_ENABLED).
+from data import scheduler  # noqa: E402
+scheduler.start()
+
 STATUSES = ["On Track", "At Risk", "Behind", "Blocked", "Not Started", "Completed"]
 TASK_STATUSES = ["Not Started", "On Track", "At Risk", "Behind", "Blocked", "Completed"]
 SEV = {"Behind": 0, "Blocked": 1, "At Risk": 2, "Not Started": 3, "On Track": 4, "Completed": 5}
