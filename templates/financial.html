@@ -2,49 +2,83 @@
 {% import "_macros.html" as m %}
 {% block content %}
 <h1>Financial Pacing</h1>
-<div class="muted">Board-level initiatives - forecast vs realized actuals</div>
+<div class="muted">EBITDA impact: realized savings vs budget across all initiatives</div>
 
 {{ m.filter_bar(options, args) }}
 
 <div class="kpis fin">
-  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">On Pace</div><div class="n">{{ pace.on }}</div></div>
-  <div class="kpi" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ pace.at }}</div></div>
-  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Behind Pace</div><div class="n">{{ pace.behind }}</div></div>
-  <div class="kpi" style="border-left-color:#aac4d4"><div class="lab">No Data</div><div class="n">{{ pace.nodata }}</div></div>
+  <div class="kpi"><div class="lab">Forecast EBITDA</div><div class="n">{{ stats.total_forecasted_ebitda|currency }}</div></div>
+  <div class="kpi" style="border-left-color:#2f8f3e"><div class="lab">Realized EBITDA</div><div class="n">{{ stats.total_realized_ebitda|currency }}</div>
+    <div class="sub">{{ stats.ebitda_pct }}% of forecast</div></div>
+  <div class="kpi" style="border-left-color:#76a22f"><div class="lab">On Pace</div><div class="n">{{ pace.on }}</div></div>
+  <div class="kpi" style="border-left-color:#cc4749"><div class="lab">Behind Pace</div><div class="n">{{ pace.behind }}</div></div>
 </div>
 
-<div class="grid2">
-  <div class="panel"><div class="chart" data-fig="{{ charts.curve }}"></div>
-    <div class="muted" style="padding:0 8px 8px">Dashed = expected pace. Solid = realized to date.</div></div>
-  <div class="panel"><div class="chart" data-fig="{{ charts.gap }}"></div>
-    <div class="muted" style="padding:0 8px 8px">Bar = Realized minus Expected Today.</div></div>
-</div>
-
-<h2>EBITDA: Forecasted vs Realized</h2>
-<div class="panel"><div class="chart" data-fig="{{ charts.ebitda }}"></div></div>
-<h2>Revenue Pacing</h2>
-<div class="panel"><div class="chart" data-fig="{{ charts.revenue }}"></div></div>
-<h2>Project Cost Tracking</h2>
-<div class="panel"><div class="chart" data-fig="{{ charts.cost }}"></div></div>
-
-<h2>Pacing Detail</h2>
-<table>
-  <thead><tr>
-    <th>Initiative</th><th>Owner</th><th>Status</th><th class="num">% Done</th>
-    <th class="num">Fcst EBITDA</th><th class="num">Real EBITDA</th><th>Pace</th>
-    <th class="num">Fcst Rev</th><th class="num">Real Rev</th><th>Target</th>
-  </tr></thead>
-  <tbody>
-  {% for r in rows %}
-    <tr>
-      <td>{{ r.name }}</td><td>{{ r.owner }}</td><td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
-      <td class="num">{{ (r.pct_complete or 0)|round|int }}%</td>
-      <td class="num">{{ r.forecasted_ebitda|currency }}</td><td class="num">{{ r.realized_ebitda|currency }}</td>
-      <td>{{ r.ebitda_pace_label or '-' }}</td>
-      <td class="num">{{ r.forecasted_revenue|currency }}</td><td class="num">{{ r.realized_revenue|currency }}</td>
-      <td>{{ r.target_completion|date }}</td>
-    </tr>
+<h2>EBITDA Realized vs Budget <span class="muted">({{ fin_rows|length }} initiatives)</span></h2>
+<div class="finlist">
+  {% for r in fin_rows %}
+  {% set fcast = r.forecasted_ebitda or 0 %}
+  {% set real = r.realized_ebitda or 0 %}
+  {% set pct = (real / fcast * 100) if fcast > 0 else (100 if real > 0 else 0) %}
+  {% set color = '#2f8f3e' if pct >= 100 else '#76a22f' if pct >= 75 else '#f1a500' if pct >= 50 else '#cc4749' %}
+  <div class="finrow">
+    <div class="finrow-top">
+      <span class="fn">{{ r.name }}</span>
+      <span class="finpct" style="color:{{ color }}">{{ pct|round|int }}%</span>
+    </div>
+    <div class="finbar"><i style="width:{{ [pct, 100]|min }}%;background:{{ color }}"></i></div>
+    <div class="finrow-fig">
+      <span><b>{{ real|currency }}</b> realized</span>
+      <span class="muted">of {{ fcast|currency }} budget</span>
+      {% if r.owner %}<span class="muted">· {{ r.owner }}</span>{% endif %}
+      {% if fcast == 0 and real > 0 %}<span class="pill" style="background:var(--brand-lime-bg);color:var(--brand-lime-dark)">all upside</span>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="panel muted" style="padding:14px">No initiatives with financial figures match these filters.</div>
   {% endfor %}
-  </tbody>
-</table>
+</div>
+
+<details class="exparea">
+  <summary>Portfolio EBITDA curve (expected pace vs realized)</summary>
+  <div class="panel"><div class="chart" data-fig="{{ curve }}"></div>
+    <div class="muted" style="padding:0 8px 10px">Dashed = expected pace from project timelines. Solid = realized to date.</div></div>
+</details>
+
+<details class="exparea">
+  <summary>Full detail table</summary>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>Initiative</th><th>Owner</th><th>Status</th><th class="num">% Done</th>
+      <th class="num">Budget EBITDA</th><th class="num">Realized EBITDA</th><th>Pace</th><th>Target</th>
+    </tr></thead>
+    <tbody>
+    {% for r in fin_rows %}
+      <tr>
+        <td>{{ r.name }}</td><td>{{ r.owner }}</td><td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
+        <td class="num">{{ (r.pct_complete or 0)|round|int }}%</td>
+        <td class="num">{{ r.forecasted_ebitda|currency }}</td><td class="num">{{ r.realized_ebitda|currency }}</td>
+        <td>{{ r.ebitda_pace_label or '-' }}</td><td>{{ r.target_completion|date }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .finlist{margin:8px 0}
+  .finrow{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:9px 12px;margin:6px 0;box-shadow:var(--shadow)}
+  .finrow-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .finrow .fn{font-weight:700;font-size:13.5px;color:var(--text)}
+  .finpct{font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .finbar{height:9px;background:var(--panelHi);border-radius:99px;overflow:hidden;margin:6px 0}
+  .finbar>i{display:block;height:100%;border-radius:99px}
+  .finrow-fig{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text)}
+  details.exparea{margin:10px 0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+  details.exparea>summary{padding:10px 14px;font-weight:700;color:var(--accent);cursor:pointer}
+</style>
 {% endblock %}

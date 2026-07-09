@@ -14,6 +14,7 @@ This module is framework-free (no Streamlit); the Flask app imports it directly.
 """
 import re
 import json
+import time
 import uuid
 from pathlib import Path
 
@@ -24,8 +25,12 @@ from data import source
 from data.models import (CSV_MAP, INTERNAL_TO_GRAPH, TYPE_TASK, TYPE_INITIATIVE,
                          parse_currency, parse_pct, parse_date)
 
-# Simple in-process cache so a single request doesn't hit Graph repeatedly.
+# In-process cache with a short TTL so a burst of requests doesn't hammer Graph,
+# but List changes (incl. writes from the sync CLI in another process) still show
+# up within a couple of minutes. clear_cache() (or ?refresh) forces an immediate
+# re-read.
 _CACHE: dict = {}
+_CACHE_TTL = 120  # seconds
 
 
 def clear_cache():
@@ -51,12 +56,14 @@ def _save_edits(edits: dict):
 
 # ── Load + clean ────────────────────────────────────────────────────────────
 def load_initiatives(force: bool = False) -> pd.DataFrame:
-    if not force and "initiatives" in _CACHE:
+    fresh = (time.time() - _CACHE.get("_ts", 0)) < _CACHE_TTL
+    if not force and fresh and "initiatives" in _CACHE:
         return _CACHE["initiatives"].copy()
     df = source.fetch_initiatives()
     df = _clean_df(df)
     df = _apply_overlay(df)
     _CACHE["initiatives"] = df
+    _CACHE["_ts"] = time.time()
     return df.copy()
 
 

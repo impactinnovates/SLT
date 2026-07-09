@@ -24,7 +24,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from config import settings
 import auth
 from data.loader import (load_initiatives, update_initiative, create_initiative,
-                         delete_initiative, create_task)
+                         delete_initiative, create_task, clear_cache)
 from data import source
 from data.models import STATUS_COLORS, STATUS_ICONS, TYPE_TASK
 from utils.pacing import enrich_dataframe, summary_stats
@@ -130,6 +130,9 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
             mask &= df[col].isin(vals)
     if a.get("show_completed", "1") not in ("1", "true", "on") and "status" in df.columns:
         mask &= df["status"] != "Completed"
+    q = (a.get("q") or "").strip()
+    if q and "name" in df.columns:
+        mask &= df["name"].astype(str).str.contains(q, case=False, na=False, regex=False)
     return df[mask].copy()
 
 
@@ -182,6 +185,13 @@ def home():
     return redirect("/dashboard" if g.user["role"] == "SLT" else "/tasks")
 
 
+@app.route("/refresh")
+def refresh():
+    """Force an immediate re-read from the List (bypass the cache TTL)."""
+    clear_cache()
+    return redirect(request.referrer or "/")
+
+
 # ── SLT: dashboard ──────────────────────────────────────────────────────────
 @app.route("/dashboard")
 @auth.require_role("SLT")
@@ -225,18 +235,25 @@ def initiatives():
 def financial():
     inits, _ = _hierarchy()
     inits = _apply_filters(inits)
-    er = inits[inits["forecasted_ebitda"].notna()].copy() if "forecasted_ebitda" in inits else inits.iloc[0:0]
+    stats = summary_stats(inits)
+    has_fin = "forecasted_ebitda" in inits.columns
+    er = inits[inits["forecasted_ebitda"].notna()].copy() if has_fin else inits.iloc[0:0]
     pace = {"on": int((er["ebitda_pace_score"] >= 1.0).sum()) if not er.empty else 0,
             "at": int(((er["ebitda_pace_score"] >= 0.75) & (er["ebitda_pace_score"] < 1.0)).sum()) if not er.empty else 0,
             "behind": int((er["ebitda_pace_score"] < 0.75).sum()) if not er.empty else 0,
             "nodata": int(er["ebitda_pace_score"].isna().sum()) if not er.empty else 0}
-    charts = {"curve": _fig(fc.ebitda_cumulative_curve(inits)),
-              "gap": _fig(fc.ebitda_gap_bar(inits)),
-              "ebitda": _fig(fc.ebitda_pacing_bar(er if not er.empty else inits)),
-              "revenue": _fig(fc.revenue_pacing_bar(inits)),
-              "cost": _fig(fc.cost_pacing_bar(inits))}
-    return render_template("financial.html", nav="financial", pace=pace, charts=charts,
-                           rows=inits.to_dict("records"), options=_options(inits), args=request.args)
+    # Per-initiative financial rows: anything with a forecast OR a realized figure,
+    # biggest budget first. This CSS list is the mobile-readable core of the page.
+    if has_fin:
+        fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy()
+        fin["_sortk"] = fin["forecasted_ebitda"].fillna(fin["realized_ebitda"]).fillna(0)
+        fin = fin.sort_values("_sortk", ascending=False)
+    else:
+        fin = inits.iloc[0:0]
+    return render_template("financial.html", nav="financial", stats=stats, pace=pace,
+                           curve=_fig(fc.ebitda_cumulative_curve(inits)),
+                           fin_rows=fin.to_dict("records"),
+                           options=_options(inits), args=request.args)
 
 
 @app.route("/timeline")

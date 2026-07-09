@@ -1,6 +1,8 @@
 {# ── Global filter bar (GET form) ── #}
 {% macro filter_bar(options, args, sort=None) %}
 <form class="filters" method="get">
+  <div style="flex-basis:100%;max-width:360px"><label>Search by name</label>
+    <input type="search" name="q" value="{{ args.get('q','') }}" placeholder="Type part of an initiative name..." style="width:100%"></div>
   <div><label>Sponsor</label>
     <select name="sponsor" multiple size="1">
       {% for s in options.sponsors %}<option value="{{ s }}" {{ 'selected' if s in args.getlist('sponsor') }}>{{ s }}</option>{% endfor %}
