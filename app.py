@@ -65,6 +65,15 @@ def _date(val):
     return str(val)
 
 
+@app.template_filter("date_iso")
+def _date_iso(val):
+    """YYYY-MM-DD for prefilling <input type=date>; empty when unknown."""
+    if isinstance(val, (date, datetime)):
+        return val.strftime("%Y-%m-%d")
+    s = str(val or "").strip()
+    return s[:10] if len(s) >= 10 and s[4] == "-" else ""
+
+
 @app.context_processor
 def _inject():
     return {"user": getattr(g, "user", None),
@@ -325,6 +334,10 @@ def _editable(f) -> dict:
             v = (f.get(k) or "").strip()
             if v:
                 out[k] = v
+        # Key metadata: only overwrite fields actually submitted by the form.
+        for k in ("owner", "sponsor", "region", "priority", "description"):
+            if f.get(k) is not None:
+                out[k] = f.get(k).strip() if isinstance(f.get(k), str) else f.get(k)
     return out
 
 

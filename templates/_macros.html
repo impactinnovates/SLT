@@ -147,6 +147,19 @@
             <input type="number" name="pct_complete" min="0" max="100" value="{{ (r.pct_complete or 0)|round|int }}"></div>
         </div>
         <div class="frow">
+          <div class="fld"><label>Owner</label><input name="owner" list="ieg-people" value="{{ r.owner if r.owner not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Sponsor</label><input name="sponsor" list="ieg-people" value="{{ r.sponsor if r.sponsor not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Region</label><input name="region" value="{{ r.region if r.region not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Priority</label>
+            <select name="priority"><option value=""></option>
+              {% for p in ['1','2','3'] %}<option {{ 'selected' if (r.priority|string)==p }}>P{{ p }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Start Date</label><input type="date" name="start_date" value="{{ r.start_date|date_iso }}"></div>
+          <div class="fld"><label>Target Completion</label><input type="date" name="target_completion" value="{{ r.target_completion|date_iso }}"></div>
+          <div class="fld" style="flex:2"><label>Description</label><input name="description" value="{{ r.description if r.description not in ('nan','None') else '' }}"></div>
+        </div>
+        <div class="frow">
           <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ r.next_action if r.next_action not in ('nan','None') else '' }}</textarea></div>
           <div class="fld"><label>Blockers</label><textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
         </div>
