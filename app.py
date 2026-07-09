@@ -78,6 +78,26 @@ def _date_iso(val):
     return s[:10] if len(s) >= 10 and s[4] == "-" else ""
 
 
+@app.template_global()
+def url_with(**changes):
+    """Current query string with some keys overridden (None removes a key). Used
+    for filter-preserving links (KPI cards, metric/dimension toggles)."""
+    from urllib.parse import urlencode
+    args = request.args.to_dict(flat=False)
+    for k, v in changes.items():
+        if v is None:
+            args.pop(k, None)
+        else:
+            args[k] = [v]
+    flat = [(k, vv) for k, vs in args.items() for vv in vs]
+    return ("?" + urlencode(flat)) if flat else ""
+
+
+@app.template_global()
+def alert_reason(row):
+    return rollup.alert_reason(row)
+
+
 @app.context_processor
 def _inject():
     return {"user": getattr(g, "user", None),
@@ -198,27 +218,30 @@ def refresh():
     return redirect(request.referrer or "/")
 
 
-# ── SLT: dashboard ──────────────────────────────────────────────────────────
+# ── SLT: dashboard (now also carries the Performance gauges + breakdown) ─────
 @app.route("/dashboard")
 @auth.require_role("SLT")
 def dashboard():
+    from utils import performance as perf
     inits, tasks = _hierarchy()
     inits = _apply_filters(inits)
     stats = summary_stats(inits)
-    att = inits[inits.apply(rollup.needs_attention, axis=1)].copy()
-    att["_sev"] = att["status"].map(SEV).fillna(9)
-    att = att.sort_values(["_sev", "name"])
-    from utils import performance as perf
     yf = perf.year_fraction()
     fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
         if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
     ebitda = perf.summarize(fin, yf)
     progress = perf.progress_summary(inits, yf)
+    by = request.args.get("by", "region")
+    dim = by if by in ("region", "sponsor", "owner") else "region"
+    metric = request.args.get("metric", "ebitda")
+    metric = metric if metric in ("ebitda", "progress") else "ebitda"
+    groups = (perf.progress_by_dimension(inits, dim, yf) if metric == "progress"
+              else perf.by_dimension(fin, dim, yf))
+    n_alerts = int(inits.apply(rollup.needs_attention, axis=1).sum()) if not inits.empty else 0
     return render_template("dashboard.html", nav="dashboard", stats=stats, ebitda=ebitda,
-                           progress=progress, attention=att.to_dict("records"),
-                           tasks_by_parent=_tasks_by_parent(tasks),
-                           donut=_fig(fc.status_donut(inits)),
-                           options=_options(inits), args=request.args, task_total=len(tasks))
+                           progress=progress, groups=groups, by=dim, metric=metric,
+                           n_alerts=n_alerts, options=_options(inits), args=request.args,
+                           task_total=len(tasks))
 
 
 # ── SLT: initiatives with task breakdown ────────────────────────────────────
@@ -228,6 +251,8 @@ def initiatives():
     inits, tasks = _hierarchy()
     total = len(inits)
     shown = _apply_filters(inits)
+    if request.args.get("alerts") == "1" and not shown.empty:
+        shown = shown[shown.apply(rollup.needs_attention, axis=1)]
     how = request.args.get("sort", "pri_sev")
     rows = _sort(shown, how).to_dict("records")
     leaders = sorted(settings.ROLES_CONFIG.get("users", {}).keys())
@@ -267,23 +292,8 @@ def financial():
 @app.route("/performance")
 @auth.require_role("SLT")
 def performance():
-    from utils import performance as perf
-    inits, _ = _hierarchy()
-    inits = _apply_filters(inits)
-    fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
-        if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
-    yf = perf.year_fraction()
-    ebitda = perf.summarize(fin, yf)
-    progress = perf.progress_summary(inits, yf)
-    by = request.args.get("by", "region")
-    dim = by if by in ("region", "sponsor", "owner") else "region"
-    metric = request.args.get("metric", "ebitda")
-    metric = metric if metric in ("ebitda", "progress") else "ebitda"
-    groups = (perf.progress_by_dimension(inits, dim, yf) if metric == "progress"
-              else perf.by_dimension(fin, dim, yf))
-    return render_template("performance.html", nav="performance", ebitda=ebitda,
-                           progress=progress, groups=groups, by=dim, metric=metric,
-                           year_pct=round(yf * 100), options=_options(inits), args=request.args)
+    # Folded into the Dashboard; keep the URL working (preserve any query).
+    return redirect("/dashboard" + (("?" + request.query_string.decode()) if request.query_string else ""))
 
 
 @app.route("/timeline")
@@ -350,7 +360,7 @@ def api_sync():
 def admin():
     from data import users
     return render_template("admin.html", nav="admin", users=users.all_users(),
-                           roles=users.VALID_ROLES, admins=sorted(settings.ADMIN_EMAILS))
+                           roles=users.SETTABLE, admins=sorted(settings.ADMIN_EMAILS))
 
 
 @app.route("/api/admin/user", methods=["POST"])
@@ -358,12 +368,16 @@ def admin():
 def api_admin_user():
     from data import users
     ident = (request.form.get("identifier") or "").strip()
+    action = request.form.get("action", "")
     role = (request.form.get("role") or "").strip()
     if not ident:
         return "identifier required", 400
-    if role and role not in users.VALID_ROLES:
-        return "invalid role", 400
-    users.set_role(ident, role)          # blank role removes the override
+    if action == "delete":
+        users.delete_user(ident)
+    else:
+        if role and role not in users.SETTABLE:
+            return "invalid role", 400
+        users.set_role(ident, role)      # blank role removes the override
     return redirect("/admin")
 
 

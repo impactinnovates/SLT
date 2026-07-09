@@ -16,6 +16,8 @@ from pathlib import Path
 from config import settings
 
 VALID_ROLES = ("SLT", "Leader", "Member")
+DISABLED = "Disabled"                 # inactivated: cannot sign in at all
+SETTABLE = VALID_ROLES + (DISABLED,)
 
 
 def _path() -> Path:
@@ -39,17 +41,26 @@ def _save(d: dict):
 
 
 def set_role(identifier: str, role: str):
-    """Add/update (or remove, if role is falsy) a user override. Keyed by the
-    lower-cased identity (email/UPN or display name)."""
+    """Set a user's override role. `role` may be SLT/Leader/Member or 'Disabled'
+    (inactivated). Any other value removes the override (revert to the seed)."""
     key = str(identifier).strip().lower()
     if not key:
         return
     d = load_overrides()
-    if role in VALID_ROLES:
+    if role in SETTABLE:
         d[key] = role
     else:
         d.pop(key, None)
     _save(d)
+
+
+def delete_user(identifier: str):
+    """Remove a user's override entirely. A roles.yaml-seeded user reverts to the
+    seed; to block a seeded user, set them 'Disabled' instead of deleting."""
+    key = str(identifier).strip().lower()
+    d = load_overrides()
+    if d.pop(key, None) is not None:
+        _save(d)
 
 
 def resolve_role(*identifiers):

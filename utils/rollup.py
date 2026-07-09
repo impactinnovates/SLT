@@ -129,3 +129,15 @@ def attach_rollup(df: pd.DataFrame) -> pd.DataFrame:
 def needs_attention(row) -> bool:
     own = str(row.get("status", "")) in {"Behind", "At Risk", "Blocked"}
     return bool(own or row.get("rollup_risk"))
+
+
+def alert_reason(row) -> str:
+    """Human-readable explanation of why an initiative is flagged (for the tooltip).
+    Empty string when it's not flagged."""
+    bits = []
+    st = str(row.get("status", ""))
+    if st in {"Behind", "At Risk", "Blocked"}:
+        bits.append(f"Status is {st}")
+    if row.get("rollup_risk"):
+        bits.append(f"Task risk - {row.get('risk_reason', '') or 'a task is Behind/Blocked'}")
+    return " · ".join(bits)

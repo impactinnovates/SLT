@@ -51,6 +51,7 @@
     .init summary::-webkit-details-marker{display:none}
     .init .nm{font-weight:700;color:var(--text);font-size:14px}
     .init .meta{color:var(--muted);font-size:12px;margin-left:auto;white-space:nowrap}
+    .alertflag{color:#cc4749;font-size:15px;cursor:help;line-height:1}
     .bar{height:7px;background:var(--panelHi);border-radius:99px;overflow:hidden;flex:1;min-width:80px;max-width:160px}
     .bar > i{display:block;height:100%;border-radius:99px}
     .body{padding:2px 14px 14px;border-top:1px solid var(--line2)}
@@ -131,7 +132,6 @@
       <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
       <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives</a>
       <a class="ieg-link {{ 'active' if nav=='financial' }}" href="/financial">Financial Pacing</a>
-      <a class="ieg-link {{ 'active' if nav=='performance' }}" href="/performance">Performance</a>
       <a class="ieg-link {{ 'active' if nav=='timeline' }}" href="/timeline">Timeline</a>
       <a class="ieg-link {{ 'active' if nav=='board' }}" href="/board">Board Report</a>
       <a class="ieg-link {{ 'active' if nav=='sync' }}" href="/sync">Savings Sync</a>
