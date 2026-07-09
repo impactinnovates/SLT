@@ -87,6 +87,12 @@
     .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
     .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
     .src.csv{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
+    /* HTMX in-flight feedback: dim + lock the element that triggered the request */
+    .htmx-request{opacity:.55;pointer-events:none;transition:opacity .1s}
+    form.editform.htmx-request{position:relative}
+    /* name search box */
+    .searchbox{width:100%;max-width:340px;padding:8px 12px;border:1px solid var(--border);
+               border-radius:8px;font-size:14px;margin:8px 0}
     /* nav: inline on desktop, collapsible drawer on mobile */
     .navmenu{display:flex;align-items:center;gap:2px;flex:1}
     .navtoggle{display:none;background:none;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer;margin-left:auto;padding:4px 10px}
@@ -125,6 +131,7 @@
       <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
       <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives</a>
       <a class="ieg-link {{ 'active' if nav=='financial' }}" href="/financial">Financial Pacing</a>
+      <a class="ieg-link {{ 'active' if nav=='performance' }}" href="/performance">Performance</a>
       <a class="ieg-link {{ 'active' if nav=='timeline' }}" href="/timeline">Timeline</a>
       <a class="ieg-link {{ 'active' if nav=='board' }}" href="/board">Board Report</a>
       <a class="ieg-link {{ 'active' if nav=='sync' }}" href="/sync">Savings Sync</a>
@@ -139,6 +146,7 @@
         <a class="ieg-link {{ 'active' if user and user.role==r }}" href="?as={{ r }}"
            style="padding:5px 8px;font-size:12px">{{ r }}</a>{% endfor %}
     {% endif %}
+    <a class="ieg-link" href="/refresh" title="Refresh from the List" style="padding:5px 9px;font-size:15px">&#8635;</a>
     <span class="src {{ source_label }}" title="Data source">
       {{ 'LIVE LIST' if source_label=='live' else 'LOCAL CSV' }}</span>
     {% if user %}

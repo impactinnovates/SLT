@@ -81,6 +81,12 @@ GRAPH_CLIENT_SECRET = os.getenv("GRAPH_CLIENT_SECRET", "")
 # is reconciled. Until then edits are staged safely in the local overlay.
 LIST_WRITE_ENABLED = os.getenv("LIST_WRITE_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
 
+# In-app nightly Cost Takeout Tracker -> List sync (same pattern as the Financial
+# Dashboard's in-app scheduler). OFF by default; enable on the Azure app only.
+# Runs once a day at SYNC_SCHEDULE_HOUR (local server time, 24h).
+SYNC_SCHEDULE_ENABLED = os.getenv("SYNC_SCHEDULE_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+SYNC_SCHEDULE_HOUR    = int(os.getenv("SYNC_SCHEDULE_HOUR", "2"))
+
 
 def graph_is_configured() -> bool:
     """True when the app has everything it needs to talk to the List as a service

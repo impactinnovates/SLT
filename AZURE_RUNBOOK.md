@@ -87,7 +87,9 @@ az webapp config appsettings set -g $RG -n slt-ieg --settings \
   SHAREPOINT_SITE_URL="https://iegna.sharepoint.com/sites/2023IEGStrategicPlan" \
   LIST_NAME="<exact List display name from the probe>" \
   GRAPH_CLIENT_SECRET="<app-only Graph secret>" \
-  LIST_WRITE_ENABLED="false"
+  LIST_WRITE_ENABLED="true" \
+  SYNC_SCHEDULE_ENABLED="true" \
+  SYNC_SCHEDULE_HOUR="2"
 ```
 
 - Add the redirect URI `https://slt-ieg.azurewebsites.net/auth/callback` to the

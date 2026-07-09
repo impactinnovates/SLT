@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
+{% set verdict = {'up':['On Pace','#2f8f3e'],'side':['At Risk','#d97706'],'down':['Behind Pace','#cc4749'],'none':['No data','#64748b']} %}
 {% block content %}
 <h1>SLT Dashboard</h1>
 <div class="muted">{{ stats.total }} strategic initiatives · {{ task_total }} tasks rolling up beneath them</div>
@@ -7,39 +8,57 @@
 {{ m.filter_bar(options, args) }}
 
 <div class="kpis">
-  <div class="kpi"><div class="lab">Total</div><div class="n">{{ stats.total }}</div></div>
-  <div class="kpi" style="border-left-color:#5a8010"><div class="lab">On Track</div><div class="n">{{ stats.on_track }}</div></div>
-  <div class="kpi" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ stats.at_risk }}</div></div>
-  <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Behind</div><div class="n">{{ stats.behind }}</div></div>
-  <div class="kpi" style="border-left-color:#7c3aed"><div class="lab">Blocked</div><div class="n">{{ stats.blocked }}</div></div>
-  <div class="kpi" style="border-left-color:#0369a1"><div class="lab">Completed</div><div class="n">{{ stats.completed }}</div></div>
+  <a class="kpi" href="/initiatives"><div class="lab">Total</div><div class="n">{{ stats.total }}</div></a>
+  <a class="kpi" href="/initiatives?status={{ 'On Track'|urlencode }}" style="border-left-color:#5a8010"><div class="lab">On Track</div><div class="n">{{ stats.on_track }}</div></a>
+  <a class="kpi" href="/initiatives?status={{ 'At Risk'|urlencode }}" style="border-left-color:#d97706"><div class="lab">At Risk</div><div class="n">{{ stats.at_risk }}</div></a>
+  <a class="kpi" href="/initiatives?status=Behind" style="border-left-color:#dc2626"><div class="lab">Behind</div><div class="n">{{ stats.behind }}</div></a>
+  <a class="kpi" href="/initiatives?status=Blocked" style="border-left-color:#7c3aed"><div class="lab">Blocked</div><div class="n">{{ stats.blocked }}</div></a>
+  <a class="kpi" href="/initiatives?status=Completed" style="border-left-color:#0369a1"><div class="lab">Completed</div><div class="n">{{ stats.completed }}</div></a>
 </div>
 
-<h2>Financial Summary</h2>
-<div class="kpis fin">
-  <div class="kpi"><div class="lab">Forecasted Revenue</div><div class="n">{{ stats.total_forecasted_rev|currency }}</div>
-    <div class="sub">{{ stats.total_realized_rev|currency }} realized</div></div>
-  <div class="kpi" style="border-left-color:{{ '#5a8010' if stats.rev_pct>=75 else '#d97706' if stats.rev_pct>=50 else '#dc2626' }}">
-    <div class="lab">Revenue Realized</div><div class="n">{{ stats.rev_pct }}%</div></div>
-  <div class="kpi"><div class="lab">Forecasted EBITDA</div><div class="n">{{ stats.total_forecasted_ebitda|currency }}</div>
-    <div class="sub">{{ stats.total_realized_ebitda|currency }} realized</div></div>
-  <div class="kpi" style="border-left-color:{{ '#5a8010' if stats.ebitda_pct>=75 else '#d97706' if stats.ebitda_pct>=50 else '#dc2626' }}">
-    <div class="lab">EBITDA Realized</div><div class="n">{{ stats.ebitda_pct }}%</div></div>
-</div>
-
-<div class="grid12">
-  <div class="panel"><div class="chart" data-fig="{{ charts.donut }}"></div></div>
-  <div class="panel"><div class="chart" data-fig="{{ charts.ebitda }}"></div></div>
+<div class="grid2">
+  {% set ev = verdict.get(ebitda.thumb, verdict['none']) %}
+  <div class="panel perfstrip" style="border-left:4px solid {{ ev[1] }}">
+    {{ m.thumb(ebitda.thumb, 64) }}
+    <div>
+      <div class="gauge-lab">EBITDA &middot; dollars</div>
+      <div style="font-size:17px;font-weight:800;color:{{ ev[1] }}">{{ ev[0] }}</div>
+      <div style="font-size:14px;font-weight:700">{{ ebitda.realized|currency }} <span class="muted">of</span> {{ ebitda.forecast|currency }}</div>
+      <div class="muted" style="font-size:12px">{% if ebitda.attainment is not none %}{{ (ebitda.attainment*100)|round|int }}% of forecast{% endif %}</div>
+    </div>
+  </div>
+  {% set pv = verdict.get(progress.thumb, verdict['none']) %}
+  <div class="panel perfstrip" style="border-left:4px solid {{ pv[1] }}">
+    {{ m.thumb(progress.thumb, 64) }}
+    <div>
+      <div class="gauge-lab">Progress &middot; by volume</div>
+      <div style="font-size:17px;font-weight:800;color:{{ pv[1] }}">{{ pv[0] }}</div>
+      <div style="font-size:14px;font-weight:700">{% if progress.avg_pct is not none %}{{ progress.avg_pct|round|int }}%{% endif %} <span class="muted">avg complete</span></div>
+      <div class="muted" style="font-size:12px">{{ progress.n }} projects · ~{{ progress.expected_pct }}% expected by now</div>
+    </div>
+  </div>
 </div>
 <div class="grid2">
-  <div class="panel"><div class="chart" data-fig="{{ charts.revenue }}"></div></div>
-  <div class="panel"><div class="chart" data-fig="{{ charts.cost }}"></div></div>
+  <div class="panel"><div class="chart" data-fig="{{ donut }}"></div></div>
+  <div class="panel" style="display:flex;align-items:center;justify-content:center;min-height:120px">
+    <a href="/performance" class="btn ghost">Break down both gauges by region / sponsor / owner &rarr;</a>
+  </div>
 </div>
 
-<h2>Needs Attention <span class="muted">({{ attention|length }} — initiative status or a task is Behind / At Risk / Blocked)</span></h2>
+<h2>Needs Attention <span class="muted">({{ attention|length }} - initiative status or a task is Behind / At Risk / Blocked)</span></h2>
 {% if attention %}
   {% for r in attention %}{{ m.initiative_card(r, user, status_colors, status_icons, tasks_by_parent.get(r.id|string, []), leaders, statuses, task_statuses) }}{% endfor %}
 {% else %}
   <div class="panel muted" style="padding:14px">Nothing currently behind, at risk, or blocked - at the initiative or task level.</div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+  a.kpi{text-decoration:none;color:inherit;display:block;transition:box-shadow .12s}
+  a.kpi:hover{box-shadow:var(--shadow-hover)}
+  .perfstrip{display:flex;align-items:center;gap:16px;min-height:120px}
+  .gauge-lab{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px}
+  @media(max-width:600px){ .perfstrip{gap:12px;min-height:0} }
+</style>
 {% endblock %}

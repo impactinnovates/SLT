@@ -24,7 +24,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from config import settings
 import auth
 from data.loader import (load_initiatives, update_initiative, create_initiative,
-                         delete_initiative, create_task)
+                         delete_initiative, create_task, clear_cache)
 from data import source
 from data.models import STATUS_COLORS, STATUS_ICONS, TYPE_TASK
 from utils.pacing import enrich_dataframe, summary_stats
@@ -39,6 +39,10 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
 
 app.register_blueprint(auth.bp)
 app.before_request(auth.require_login)
+
+# Nightly Cost Takeout Tracker -> List sync (no-op unless SYNC_SCHEDULE_ENABLED).
+from data import scheduler  # noqa: E402
+scheduler.start()
 
 STATUSES = ["On Track", "At Risk", "Behind", "Blocked", "Not Started", "Completed"]
 TASK_STATUSES = ["Not Started", "On Track", "At Risk", "Behind", "Blocked", "Completed"]
@@ -130,6 +134,9 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
             mask &= df[col].isin(vals)
     if a.get("show_completed", "1") not in ("1", "true", "on") and "status" in df.columns:
         mask &= df["status"] != "Completed"
+    q = (a.get("q") or "").strip()
+    if q and "name" in df.columns:
+        mask &= df["name"].astype(str).str.contains(q, case=False, na=False, regex=False)
     return df[mask].copy()
 
 
@@ -182,6 +189,13 @@ def home():
     return redirect("/dashboard" if g.user["role"] == "SLT" else "/tasks")
 
 
+@app.route("/refresh")
+def refresh():
+    """Force an immediate re-read from the List (bypass the cache TTL)."""
+    clear_cache()
+    return redirect(request.referrer or "/")
+
+
 # ── SLT: dashboard ──────────────────────────────────────────────────────────
 @app.route("/dashboard")
 @auth.require_role("SLT")
@@ -192,15 +206,17 @@ def dashboard():
     att = inits[inits.apply(rollup.needs_attention, axis=1)].copy()
     att["_sev"] = att["status"].map(SEV).fillna(9)
     att = att.sort_values(["_sev", "name"])
-    charts = {"donut": _fig(fc.status_donut(inits)),
-              "ebitda": _fig(fc.ebitda_pacing_bar(inits)),
-              "revenue": _fig(fc.revenue_pacing_bar(inits)),
-              "cost": _fig(fc.cost_pacing_bar(inits))}
-    return render_template("dashboard.html", nav="dashboard", stats=stats,
-                           attention=att.to_dict("records"),
+    from utils import performance as perf
+    yf = perf.year_fraction()
+    fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
+        if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
+    ebitda = perf.summarize(fin, yf)
+    progress = perf.progress_summary(inits, yf)
+    return render_template("dashboard.html", nav="dashboard", stats=stats, ebitda=ebitda,
+                           progress=progress, attention=att.to_dict("records"),
                            tasks_by_parent=_tasks_by_parent(tasks),
-                           charts=charts, options=_options(inits), args=request.args,
-                           task_total=len(tasks))
+                           donut=_fig(fc.status_donut(inits)),
+                           options=_options(inits), args=request.args, task_total=len(tasks))
 
 
 # ── SLT: initiatives with task breakdown ────────────────────────────────────
@@ -225,18 +241,47 @@ def initiatives():
 def financial():
     inits, _ = _hierarchy()
     inits = _apply_filters(inits)
-    er = inits[inits["forecasted_ebitda"].notna()].copy() if "forecasted_ebitda" in inits else inits.iloc[0:0]
+    stats = summary_stats(inits)
+    has_fin = "forecasted_ebitda" in inits.columns
+    er = inits[inits["forecasted_ebitda"].notna()].copy() if has_fin else inits.iloc[0:0]
     pace = {"on": int((er["ebitda_pace_score"] >= 1.0).sum()) if not er.empty else 0,
             "at": int(((er["ebitda_pace_score"] >= 0.75) & (er["ebitda_pace_score"] < 1.0)).sum()) if not er.empty else 0,
             "behind": int((er["ebitda_pace_score"] < 0.75).sum()) if not er.empty else 0,
             "nodata": int(er["ebitda_pace_score"].isna().sum()) if not er.empty else 0}
-    charts = {"curve": _fig(fc.ebitda_cumulative_curve(inits)),
-              "gap": _fig(fc.ebitda_gap_bar(inits)),
-              "ebitda": _fig(fc.ebitda_pacing_bar(er if not er.empty else inits)),
-              "revenue": _fig(fc.revenue_pacing_bar(inits)),
-              "cost": _fig(fc.cost_pacing_bar(inits))}
-    return render_template("financial.html", nav="financial", pace=pace, charts=charts,
-                           rows=inits.to_dict("records"), options=_options(inits), args=request.args)
+    # Per-initiative financial rows: anything with a forecast OR a realized figure,
+    # biggest budget first. This CSS list is the mobile-readable core of the page.
+    if has_fin:
+        fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy()
+        fin["_sortk"] = fin["forecasted_ebitda"].fillna(fin["realized_ebitda"]).fillna(0)
+        fin = fin.sort_values("_sortk", ascending=False)
+    else:
+        fin = inits.iloc[0:0]
+    return render_template("financial.html", nav="financial", stats=stats, pace=pace,
+                           curve=_fig(fc.ebitda_cumulative_curve(inits)),
+                           fin_rows=fin.to_dict("records"),
+                           options=_options(inits), args=request.args)
+
+
+@app.route("/performance")
+@auth.require_role("SLT")
+def performance():
+    from utils import performance as perf
+    inits, _ = _hierarchy()
+    inits = _apply_filters(inits)
+    fin = inits[inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()].copy() \
+        if "forecasted_ebitda" in inits.columns else inits.iloc[0:0]
+    yf = perf.year_fraction()
+    ebitda = perf.summarize(fin, yf)
+    progress = perf.progress_summary(inits, yf)
+    by = request.args.get("by", "region")
+    dim = by if by in ("region", "sponsor", "owner") else "region"
+    metric = request.args.get("metric", "ebitda")
+    metric = metric if metric in ("ebitda", "progress") else "ebitda"
+    groups = (perf.progress_by_dimension(inits, dim, yf) if metric == "progress"
+              else perf.by_dimension(fin, dim, yf))
+    return render_template("performance.html", nav="performance", ebitda=ebitda,
+                           progress=progress, groups=groups, by=dim, metric=metric,
+                           year_pct=round(yf * 100), options=_options(inits), args=request.args)
 
 
 @app.route("/timeline")
