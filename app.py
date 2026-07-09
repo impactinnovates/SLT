@@ -325,19 +325,45 @@ def new_initiative():
                            source_label=src, writes=settings.LIST_WRITE_ENABLED)
 
 
-# ── SLT: board report (print/PDF-friendly) ──────────────────────────────────
+# ── SLT: board report (print/PDF-friendly, summarized by Region) ─────────────
+_THUMB_ORDER = {"down": 0, "side": 1, "up": 2, "none": 3}
+
+
 @app.route("/board")
 @auth.require_role("SLT")
 def board():
-    inits, tasks = _hierarchy()
+    from utils import performance as perf
+    inits, _ = _hierarchy()
     inits = _apply_filters(inits)
-    inits = _sort(inits, "pri_sev")
     stats = summary_stats(inits)
-    att = inits[inits.apply(rollup.needs_attention, axis=1)]
-    return render_template("board.html", nav="board", stats=stats,
-                           rows=inits.to_dict("records"),
+    yf = perf.year_fraction()
+    att = inits[inits.apply(rollup.needs_attention, axis=1)] if not inits.empty else inits
+
+    has_e = (inits["forecasted_ebitda"].notna() | inits["realized_ebitda"].notna()) \
+        if "forecasted_ebitda" in inits.columns else pd.Series([False] * len(inits), index=inits.index)
+
+    regions = []
+    if not inits.empty:
+        reg = inits["region"].replace("", "(no region)").fillna("(no region)")
+        for rname, grp in inits.groupby(reg):
+            gmask = has_e.loc[grp.index]
+            with_e, without_e = grp[gmask], grp[~gmask]
+            e_sum = perf.summarize(with_e, yf) if not with_e.empty else None
+            p_sum = perf.progress_summary(without_e, yf) if not without_e.empty else None
+            region_thumb = (e_sum or p_sum or {"thumb": "none"})["thumb"]
+            regions.append({
+                "name": str(rname), "count": len(grp), "thumb": region_thumb,
+                "with_ebitda": ({"summary": e_sum, "count": len(with_e),
+                                 "owners": perf.by_dimension(with_e, "owner", yf)}
+                                if not with_e.empty else None),
+                "without_ebitda": ({"summary": p_sum, "count": len(without_e),
+                                    "owners": perf.progress_by_dimension(without_e, "owner", yf)}
+                                   if not without_e.empty else None),
+            })
+        regions.sort(key=lambda r: (_THUMB_ORDER.get(r["thumb"], 9), -r["count"]))
+
+    return render_template("board.html", nav="board", stats=stats, regions=regions,
                            attention=att.to_dict("records"),
-                           tasks_by_parent=_tasks_by_parent(tasks),
                            generated=date.today().strftime("%B %d, %Y"))
 
 
