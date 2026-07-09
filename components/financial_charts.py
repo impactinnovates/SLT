@@ -344,7 +344,7 @@ def completion_timeline(df: pd.DataFrame) -> go.Figure:
     sub = sub[sub["_sd"].notna() & sub["_td"].notna()].copy()
     if sub.empty:
         return _empty_fig("No date data available")
-    sub   = sub.sort_values("_td").tail(30)
+    sub   = sub.sort_values("_sd")          # all matching rows, earliest start first
     today = date.today()
 
     labels, offsets, durs, prog_x, colors, hovers = [], [], [], [], [], []
