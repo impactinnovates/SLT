@@ -88,6 +88,8 @@
   <summary>
     <span>{{ status_icons.get(r.status, '⚪') }}</span>
     <span class="nm">{{ r.name }}</span>
+    {% set ar = alert_reason(r) %}
+    {% if ar %}<span class="alertflag" title="{{ ar }}">&#9888;</span>{% endif %}
     <span class="bar"><i style="width:{{ pct }}%;background:{{ color }}"></i></span>
     <span class="meta">{{ r.owner or '-' }} · {{ pct|round|int }}% · {{ r.target_completion|date }}</span>
   </summary>

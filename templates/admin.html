@@ -8,6 +8,7 @@
   <b>SLT</b> sees all initiatives, financials, board report and can create/assign anything.
   <b>Leader</b> sees only tasks they own or assigned to their team - never SLT initiatives or financials.
   <b>Member</b> sees only tasks assigned to them. Anyone who signs in but isn't listed here is treated as a <b>Member</b> (lowest access).
+  <br><b>Disabled</b> blocks a person's sign-in entirely while keeping their record (re-enable anytime by changing the role). <b>Delete</b> removes them from the list. Both take effect immediately.
 </div>
 
 <h2>Set / change a person's role</h2>
@@ -33,16 +34,22 @@
   {% for u in users %}
     <tr>
       <td>{{ u.identifier }}</td>
-      <td><span class="pill" style="background:var(--panelHi)">{{ u.role }}</span></td>
+      <td><span class="pill" style="background:{{ '#fdecec' if u.role=='Disabled' else 'var(--panelHi)' }};color:{{ '#a32b2d' if u.role=='Disabled' else 'var(--text)' }}">{{ u.role }}</span></td>
       <td class="muted">{{ u.source }}</td>
       <td>
-        <form method="post" action="/api/admin/user" style="display:flex;gap:6px;align-items:center">
-          <input type="hidden" name="identifier" value="{{ u.identifier }}">
-          <select name="role">
-            {% for r in roles %}<option {{ 'selected' if u.role==r }}>{{ r }}</option>{% endfor %}
-          </select>
-          <button class="btn ghost" type="submit">Update</button>
-        </form>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <form method="post" action="/api/admin/user" style="display:flex;gap:6px;align-items:center">
+            <input type="hidden" name="identifier" value="{{ u.identifier }}">
+            <select name="role">{% for r in roles %}<option {{ 'selected' if u.role==r }}>{{ r }}</option>{% endfor %}</select>
+            <button class="btn ghost" type="submit">Update</button>
+          </form>
+          <form method="post" action="/api/admin/user"
+                onsubmit="return confirm('Delete {{ u.identifier }} from the access list?')">
+            <input type="hidden" name="identifier" value="{{ u.identifier }}">
+            <input type="hidden" name="action" value="delete">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+        </div>
       </td>
     </tr>
   {% endfor %}

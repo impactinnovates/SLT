@@ -95,6 +95,15 @@ def require_login():
             abort(401)
         session["next_url"] = request.path
         return redirect(url_for("auth.login"))
+    # Re-resolve the role live each request so an admin's role change or a
+    # disable takes effect immediately, not just at next sign-in.
+    from data import users
+    role = users.resolve_role(user.get("email"), user.get("name")) or "Member"
+    if role == users.DISABLED:
+        session.clear()
+        abort(403, "Your access to this app has been disabled.")
+    user = {**user, "role": role}
+    session["user"] = user
     g.user = user
 
 
