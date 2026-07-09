@@ -287,24 +287,49 @@ def ebitda_gap_bar(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def _as_date(v):
+    """Coerce a value to a date (handles date/datetime, ISO strings, US formats).
+    Returns None if it isn't a usable date - so mixed str/date columns can't crash
+    the sort/arithmetic below."""
+    from datetime import date as _date, datetime as _dt
+    if isinstance(v, _dt):
+        return v.date()
+    if isinstance(v, _date):
+        return v
+    s = str(v).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return None
+    if "T" in s:
+        s = s.split("T", 1)[0]
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return _dt.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 def completion_timeline(df: pd.DataFrame) -> go.Figure:
-    sub = df[df["start_date"].notna() & df["target_completion"].notna()].copy()
+    sub = df.copy()
+    sub["_sd"] = sub["start_date"].apply(_as_date)
+    sub["_td"] = sub["target_completion"].apply(_as_date)
+    sub = sub[sub["_sd"].notna() & sub["_td"].notna()].copy()
     if sub.empty:
         return _empty_fig("No date data available")
-    sub   = sub.sort_values("target_completion").tail(30)
+    sub   = sub.sort_values("_td").tail(30)
     today = date.today()
     fig   = go.Figure()
     for _, row in sub.iterrows():
         color    = STATUS_COLORS.get(row.get("status",""), TEAL)
         label    = (row.get("name","")[:40]+"…") if len(row.get("name",""))>40 else row.get("name","")
-        duration = (row["target_completion"] - row["start_date"]).days
-        offset   = (row["start_date"] - date(today.year, 1, 1)).days
+        duration = (row["_td"] - row["_sd"]).days
+        offset   = (row["_sd"] - date(today.year, 1, 1)).days
         fig.add_trace(go.Bar(
             x=[duration], y=[label], base=[offset], orientation="h",
             marker_color=color, marker_line_color=CARD_BG, marker_line_width=1,
             showlegend=False,
-            hovertemplate=(f"<b>{label}</b><br>Start: {row['start_date']}<br>"
-                           f"Target: {row['target_completion']}<br>"
+            hovertemplate=(f"<b>{label}</b><br>Start: {row['_sd']}<br>"
+                           f"Target: {row['_td']}<br>"
                            f"Status: {row.get('status','')}<br>"
                            f"Complete: {_v(row.get('pct_complete',0)):.0f}%<extra></extra>"),
         ))
