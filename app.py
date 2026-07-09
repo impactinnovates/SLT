@@ -83,18 +83,20 @@ def _inject():
     return {"user": getattr(g, "user", None),
             "source_label": source.source_label(),
             "status_colors": STATUS_COLORS, "status_icons": STATUS_ICONS,
-            "auth_enabled": auth.AUTH_ENABLED,
+            "auth_enabled": auth.AUTH_ENABLED, "is_admin": auth.is_admin(),
             "statuses": STATUSES, "task_statuses": TASK_STATUSES,
             "leaders": sorted(settings.ROLES_CONFIG.get("users", {}).keys())}
 
 
 # ── Data helpers ────────────────────────────────────────────────────────────
 def _hierarchy():
-    """(initiatives_enriched_with_rollup, tasks). Single source for every view."""
+    """(initiatives_enriched_with_rollup, tasks_with_rollup). Single source for
+    every view. Roll-up runs on ALL rows first so it nests sub-task -> task ->
+    initiative; then we split and add pacing to the initiatives."""
     raw = load_initiatives()
+    raw = rollup.attach_rollup(raw)
     inits, tasks = rollup.split_hierarchy(raw)
     inits = enrich_dataframe(inits)
-    inits = rollup.attach_rollup(inits, tasks)
     return inits, tasks
 
 
@@ -342,19 +344,43 @@ def api_sync():
     return render_template("sync_result.html", results=results)
 
 
+# ── Admin: user access management (admins only, per ADMIN_EMAILS) ────────────
+@app.route("/admin")
+@auth.require_admin
+def admin():
+    from data import users
+    return render_template("admin.html", nav="admin", users=users.all_users(),
+                           roles=users.VALID_ROLES, admins=sorted(settings.ADMIN_EMAILS))
+
+
+@app.route("/api/admin/user", methods=["POST"])
+@auth.require_admin
+def api_admin_user():
+    from data import users
+    ident = (request.form.get("identifier") or "").strip()
+    role = (request.form.get("role") or "").strip()
+    if not ident:
+        return "identifier required", 400
+    if role and role not in users.VALID_ROLES:
+        return "invalid role", 400
+    users.set_role(ident, role)          # blank role removes the override
+    return redirect("/admin")
+
+
 # ── Leader / Member: task workspace ─────────────────────────────────────────
 @app.route("/tasks")
 def tasks_view():
     if g.user["role"] == "SLT":
         return redirect("/initiatives")
-    _, tasks = _hierarchy()
+    inits, tasks = _hierarchy()
     mine = _my_tasks(tasks, g.user)
     # Parent initiative NAME only (never its strategic/financial detail).
-    inits, _ = rollup.split_hierarchy(load_initiatives())
     pname = {str(r["id"]): r.get("name", "") for _, r in inits.iterrows()} if not inits.empty else {}
+    subs_by_parent = _tasks_by_parent(tasks)   # task id -> its sub-tasks
     mine_records = mine.to_dict("records")
     for t in mine_records:
         t["parent_name"] = pname.get(str(t.get("parent_id", "")), "")
+        t["subs"] = subs_by_parent.get(str(t.get("id", "")), [])
     can_assign = settings.get_permissions(g.user["role"]).get("assign_task")
     return render_template("tasks.html", nav="tasks", tasks=mine_records,
                            task_statuses=TASK_STATUSES, can_assign=can_assign)
@@ -421,8 +447,20 @@ def api_delete(item_id):
 
 @app.route("/api/initiative/<parent_id>/task", methods=["POST"])
 def api_create_task(parent_id):
-    """SLT or a Leader adds a task under an initiative and assigns an owner."""
+    """SLT adds a task under any initiative; a Leader adds a sub-task ONLY under a
+    task they own or created. Members cannot create tasks (create_task=false)."""
     _require("create_task")
+    if g.user["role"] != "SLT":
+        # A Leader may only nest under one of their own tasks - never an initiative
+        # (initiatives aren't in the tasks frame, so this also blocks that path).
+        _, _tasks = rollup.split_hierarchy(load_initiatives())
+        prow = _tasks[_tasks["id"].astype(str) == str(parent_id)]
+        me = _identity(g.user)
+        owns = (not prow.empty and
+                (str(prow.iloc[0].get("owner", "")).lower() in me
+                 or str(prow.iloc[0].get("created_by", "")).lower() in me))
+        if not owns:
+            abort(403)
     owner = request.form.get("owner", "").strip() or g.user["name"]
     name = request.form.get("name", "").strip()
     if not name:

@@ -84,6 +84,7 @@ az webapp config appsettings set -g $RG -n slt-ieg --settings \
   ENTRA_CLIENT_SECRET="<sign-in-app-secret>" \
   ENTRA_REDIRECT_URI="https://slt-ieg.azurewebsites.net/auth/callback" \
   SESSION_SECRET="<long-random-string>" \
+  ADMIN_EMAILS="<your-email@iegna.com>,james.koch@iegna.com" \
   SHAREPOINT_SITE_URL="https://iegna.sharepoint.com/sites/2023IEGStrategicPlan" \
   LIST_NAME="<exact List display name from the probe>" \
   GRAPH_CLIENT_SECRET="<app-only Graph secret>" \

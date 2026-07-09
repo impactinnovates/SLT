@@ -99,7 +99,7 @@ def require_login():
 
 
 def require_role(*roles):
-    """Route decorator: allow only the given SLT/PM/TM roles."""
+    """Route decorator: allow only the given SLT / Leader / Member roles."""
     def deco(fn):
         @wraps(fn)
         def wrapper(*a, **kw):
@@ -109,6 +109,28 @@ def require_role(*roles):
             return fn(*a, **kw)
         return wrapper
     return deco
+
+
+def is_admin(user=None) -> bool:
+    """May the user open the Admin screen? Authoritative source is the
+    ADMIN_EMAILS env var (set only on the Azure app), so admin rights can't be
+    granted from inside the app. Local dev (no SSO) is admin for testing."""
+    user = user or current_user()
+    if not user:
+        return False
+    if not AUTH_ENABLED:
+        return True
+    email = str(user.get("email", "")).strip().lower()
+    return bool(settings.ADMIN_EMAILS) and email in settings.ADMIN_EMAILS
+
+
+def require_admin(fn):
+    @wraps(fn)
+    def wrapper(*a, **kw):
+        if not is_admin():
+            abort(403)
+        return fn(*a, **kw)
+    return wrapper
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────
@@ -150,8 +172,9 @@ def callback():
     if not oid:
         abort(400, "Token missing oid")
 
-    # Access layer comes from roles.yaml, matched on display name OR email/UPN.
-    role = settings.get_user_role(name, email)
+    # Access layer: admin-managed overrides first, then roles.yaml, else Member.
+    from data import users
+    role = users.resolve_role(name, email) or "Member"
 
     next_url = session.pop("next_url", "/")
     session.clear()                       # defeat session fixation (no regenerate in Flask)

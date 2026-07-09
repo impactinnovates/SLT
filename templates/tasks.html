@@ -13,8 +13,9 @@
     <summary>
       <span>{{ status_icons.get(t.status,'⚪') }}</span>
       <span class="nm">{{ t.name }}</span>
-      <span class="bar"><i style="width:{{ (t.pct_complete or 0)|float }}%;background:{{ color }}"></i></span>
-      <span class="meta">{{ (t.pct_complete or 0)|round|int }}%{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span>
+      {% set shown = (t.effective_pct if (t.task_count and t.task_count > 0) else t.pct_complete) or 0 %}
+      <span class="bar"><i style="width:{{ shown|float }}%;background:{{ color }}"></i></span>
+      <span class="meta">{{ shown|round|int }}%{% if t.task_count and t.task_count > 0 %} · {{ t.task_count }} sub-task{{ 's' if t.task_count != 1 }}{% endif %}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span>
     </summary>
     <div class="body">
       {% if t.parent_name %}<div class="metarow"><span><b>Part of:</b> {{ t.parent_name }}</span>
@@ -32,6 +33,20 @@
         </div>
         <button class="btn primary" type="submit">Save Update</button>
       </form>
+
+      {% if t.subs %}
+      <div class="tasks">
+        <div class="subt">Sub-tasks ({{ t.subs|length }}) &middot; rolled {{ (t.rollup_pct or 0)|round|int }}%</div>
+        {% for s in t.subs %}
+        {% set sc = status_colors.get(s.status,'#94a3b8') %}
+        <div class="taskline" style="border-left-color:{{ sc }}">
+          <span class="ti">{{ status_icons.get(s.status,'⚪') }} <b>{{ s.name }}</b>
+            <span class="muted">· {{ s.owner or 'unassigned' }}</span></span>
+          <span class="pill" style="background:{{ sc }}18;color:{{ sc }};border-color:{{ sc }}44">{{ s.status }} · {{ (s.pct_complete or 0)|round|int }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       {% if can_assign %}
       <details class="addtask" style="margin-top:8px">

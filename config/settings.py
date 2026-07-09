@@ -53,6 +53,9 @@ def _resolve(env_key: str, default: Path) -> Path:
 CSV_PATH             = _resolve("CSV_PATH",             ROOT / "data" / "Strategic_Initiatives_2026.csv")
 EDITS_PATH           = _resolve("EDITS_PATH",           DATA_DIR / "edits.json")
 SUB_INITIATIVES_PATH = _resolve("SUB_INITIATIVES_PATH", DATA_DIR / "sub_initiatives.json")
+# Admin-managed user->role overrides live on PERSISTENT storage (survives deploys),
+# layered over the committed config/roles.yaml seed.
+USER_ROLES_PATH      = _resolve("USER_ROLES_PATH",      DATA_DIR / "user_roles.json")
 
 # ── Microsoft Entra SSO (user sign-in) ──────────────────────────
 ENTRA_CLIENT_ID     = os.getenv("ENTRA_CLIENT_ID", "")
@@ -60,6 +63,12 @@ ENTRA_CLIENT_SECRET = os.getenv("ENTRA_CLIENT_SECRET", "")
 ENTRA_TENANT_ID     = os.getenv("ENTRA_TENANT_ID", "")
 ENTRA_REDIRECT_URI  = os.getenv("ENTRA_REDIRECT_URI", "")
 SESSION_SECRET      = os.getenv("SESSION_SECRET", "")
+
+# Who may open the Admin screen (manage user roles). Authoritative and set ONLY
+# via this env var on the Azure app, so admin rights can never be granted from
+# inside the app. Comma/semicolon-separated emails (UPNs). Fail-closed: blank = nobody.
+ADMIN_EMAILS = {e.strip().lower() for e in
+                os.getenv("ADMIN_EMAILS", "").replace(";", ",").split(",") if e.strip()}
 
 # ── App-only Microsoft Graph (List read/write as a service identity) ──
 # The SharePoint site that hosts the Strategic Initiatives List (confirmed by Chad).
