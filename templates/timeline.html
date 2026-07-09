@@ -2,7 +2,14 @@
 {% import "_macros.html" as m %}
 {% block content %}
 <h1>Initiative Timeline</h1>
-<div class="muted">Start-to-target spans across the year; the dotted line marks today.</div>
+<div class="muted">Bars span start &rarr; target. The <b>fill</b> = progress (realized EBITDA vs budget, or % complete for non-financial work), colored by <b>pace</b> against the dotted "today" line - not the manually-set status.</div>
+<div class="muted" style="margin:6px 0 2px;font-size:12px">
+  <span style="color:#2f8f3e;font-size:15px">&#9632;</span> On pace &nbsp;
+  <span style="color:#f1a500;font-size:15px">&#9632;</span> At risk &nbsp;
+  <span style="color:#cc4749;font-size:15px">&#9632;</span> Behind &nbsp;
+  <span style="color:#0369a1;font-size:15px">&#9632;</span> Complete &nbsp;
+  <span style="color:#94a3b8;font-size:15px">&#9632;</span> Not started
+</div>
 {{ m.filter_bar(options, args) }}
 <div class="panel"><div class="chart" data-fig="{{ chart }}"></div></div>
 {% endblock %}

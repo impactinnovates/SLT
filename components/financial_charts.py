@@ -309,6 +309,34 @@ def _as_date(v):
     return None
 
 
+def _pace_health(row, today):
+    """(color, label, progress_fraction) for a timeline bar, judged on PACE, not
+    the manually-set status. Progress = realized EBITDA vs budget for EBITDA
+    projects, else % complete; pace = progress vs the fraction of the schedule
+    elapsed. Green = on/ahead, amber = a bit behind, red = well behind."""
+    sd, td = row["_sd"], row["_td"]
+    total = max((td - sd).days, 1)
+    elapsed = min(max((today - sd).days, 0), total)
+    exp = elapsed / total                                  # where they should be
+    fe = _v(row.get("forecasted_ebitda"))
+    if fe > 0:
+        prog = _v(row.get("realized_ebitda")) / fe
+        detail = f"EBITDA ${_v(row.get('realized_ebitda')):,.0f} / ${fe:,.0f} = {prog*100:.0f}%"
+    else:
+        prog = _v(row.get("pct_complete")) / 100.0
+        detail = f"{_v(row.get('pct_complete')):.0f}% complete"
+    if str(row.get("status", "")) == "Completed" or prog >= 1.0:
+        return "#0369a1", "Complete", min(prog, 1.0), detail
+    pace = (prog / exp) if exp > 0 else None
+    if pace is None:
+        return "#94a3b8", "Not started", prog, detail
+    if pace >= 0.9:
+        return "#2f8f3e", "On pace", prog, detail
+    if pace >= 0.7:
+        return "#f1a500", "At risk", prog, detail
+    return "#cc4749", "Behind", prog, detail
+
+
 def completion_timeline(df: pd.DataFrame) -> go.Figure:
     sub = df.copy()
     sub["_sd"] = sub["start_date"].apply(_as_date)
@@ -318,33 +346,43 @@ def completion_timeline(df: pd.DataFrame) -> go.Figure:
         return _empty_fig("No date data available")
     sub   = sub.sort_values("_td").tail(30)
     today = date.today()
-    fig   = go.Figure()
+
+    labels, offsets, durs, prog_x, colors, hovers = [], [], [], [], [], []
+    seen = {}
     for _, row in sub.iterrows():
-        color    = STATUS_COLORS.get(row.get("status",""), TEAL)
-        label    = (row.get("name","")[:40]+"…") if len(row.get("name",""))>40 else row.get("name","")
-        duration = (row["_td"] - row["_sd"]).days
-        offset   = (row["_sd"] - date(today.year, 1, 1)).days
-        fig.add_trace(go.Bar(
-            x=[duration], y=[label], base=[offset], orientation="h",
-            marker_color=color, marker_line_color=CARD_BG, marker_line_width=1,
-            showlegend=False,
-            hovertemplate=(f"<b>{label}</b><br>Start: {row['_sd']}<br>"
-                           f"Target: {row['_td']}<br>"
-                           f"Status: {row.get('status','')}<br>"
-                           f"Complete: {_v(row.get('pct_complete',0)):.0f}%<extra></extra>"),
-        ))
+        nm = row.get("name", "") or "(unnamed)"
+        label = (nm[:40] + "…") if len(nm) > 40 else nm
+        seen[label] = seen.get(label, 0) + 1
+        if seen[label] > 1:                                # keep y-categories unique
+            label = f"{label} ({seen[label]})"
+        col, plabel, prog, detail = _pace_health(row, today)
+        offset = (row["_sd"] - date(today.year, 1, 1)).days
+        dur = (row["_td"] - row["_sd"]).days
+        labels.append(label); offsets.append(offset); durs.append(dur)
+        prog_x.append(dur * min(max(prog, 0.0), 1.0)); colors.append(col)
+        hovers.append(f"<b>{label}</b><br>Pace: {plabel}<br>{detail}<br>"
+                      f"{row['_sd']} → {row['_td']}<extra></extra>")
+
+    fig = go.Figure()
+    # Full schedule (light track)
+    fig.add_trace(go.Bar(y=labels, x=durs, base=offsets, orientation="h",
+                         marker_color="#e8eff4", marker_line_color=CARD_BG,
+                         marker_line_width=1, showlegend=False, hoverinfo="skip"))
+    # Progress fill, colored by pace
+    fig.add_trace(go.Bar(y=labels, x=prog_x, base=offsets, orientation="h",
+                         marker_color=colors, showlegend=False,
+                         hovertemplate=hovers))
     today_offset = (today - date(today.year, 1, 1)).days
     fig.add_vline(x=today_offset, line_color="#d97706", line_width=1.5, line_dash="dot",
                   annotation_text="Today", annotation_font_color="#d97706", annotation_font_size=10)
-    h      = max(400, len(sub)*22+80)
-    layout = _base_layout("Initiative Timeline", height=h)
+    h = max(400, len(sub) * 22 + 80)
+    layout = _base_layout("Initiative Timeline - colored by pace (progress vs schedule)", height=h)
     layout["xaxis"].update(
-        title="Day of Year",
-        tickvals=[0,31,59,90,120,151,181,212,243,273,304,334],
-        ticktext=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+        title="", tickvals=[0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
+        ticktext=["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     )
     layout["margin"] = dict(l=280, r=20, t=45, b=40)
-    fig.update_layout(**layout, showlegend=False)
+    fig.update_layout(**layout, barmode="overlay", showlegend=False)
     return fig
 
 

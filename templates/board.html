@@ -26,23 +26,6 @@
   <div class="kpi" style="border-left-color:#dc2626"><div class="lab">Attention</div><div class="n">{{ attention|length }}</div></div>
 </div>
 
-{% if attention %}
-<h2>Attention Required</h2>
-<table class="boardtbl">
-  <thead><tr><th>Initiative</th><th>Region</th><th>Owner</th><th>Status</th><th class="num">%</th><th>Driver</th></tr></thead>
-  <tbody>
-  {% for r in attention %}
-    <tr>
-      <td><b>{{ r.name }}</b></td><td>{{ r.region }}</td><td>{{ r.owner }}</td>
-      <td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
-      <td class="num">{{ (r.effective_pct if r.effective_pct is not none else (r.pct_complete or 0))|round|int }}%</td>
-      <td>{{ alert_reason(r) or '-' }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% endif %}
-
 <h2>Performance by Region</h2>
 <div class="muted noprint" style="margin-bottom:6px">Each region rolls up its EBITDA-impacting and non-EBITDA work. Expand "by owner" for detail.</div>
 {% for reg in regions %}
@@ -95,6 +78,27 @@
 {% else %}
 <div class="panel muted" style="padding:14px">No initiatives match the current filters.</div>
 {% endfor %}
+
+{% if attention %}
+<details class="exparea" style="margin-top:14px">
+  <summary>Attention Required &mdash; {{ attention|length }} initiative{{ 's' if attention|length != 1 }}</summary>
+  <div style="overflow-x:auto;padding:0 12px 10px">
+  <table class="boardtbl">
+    <thead><tr><th>Initiative</th><th>Region</th><th>Owner</th><th>Status</th><th class="num">%</th><th>Driver</th></tr></thead>
+    <tbody>
+    {% for r in attention %}
+      <tr>
+        <td><b>{{ r.name }}</b></td><td>{{ r.region }}</td><td>{{ r.owner }}</td>
+        <td>{{ status_icons.get(r.status,'') }} {{ r.status }}</td>
+        <td class="num">{{ (r.effective_pct if r.effective_pct is not none else (r.pct_complete or 0))|round|int }}%</td>
+        <td>{{ alert_reason(r) or '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -116,6 +120,8 @@
   .ownerrow{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px}
   .ownerrow .on{font-weight:600;color:var(--text)}
   .ownerrow .muted{margin-left:auto;white-space:nowrap}
+  details.exparea{margin:10px 0;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+  details.exparea>summary{padding:10px 14px;font-weight:700;color:var(--accent);cursor:pointer}
   @media print {
     .ieg-nav,.noprint{display:none !important}
     main{margin:0;max-width:none;padding:0}
@@ -127,7 +133,7 @@
 <script>
   // Expand every owner drill-down before printing so the board report is complete on paper.
   window.addEventListener('beforeprint', function(){
-    document.querySelectorAll('details.ownerdrill').forEach(function(d){ d.open = true; });
+    document.querySelectorAll('details').forEach(function(d){ d.open = true; });
   });
 </script>
 {% endblock %}
