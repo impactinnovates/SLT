@@ -1,2 +1,8 @@
 {% import "_macros.html" as m %}
+{% if error %}
+<div class="callout block" style="margin:6px 0">
+  <div class="h">&#9888; Save failed - your change was NOT written to the List</div>
+  <code style="font-size:11px">{{ error }}</code>
+</div>
+{% endif %}
 {{ m.initiative_card(r, user, status_colors, status_icons, children, leaders, statuses, task_statuses) }}

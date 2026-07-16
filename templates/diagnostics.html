@@ -28,6 +28,19 @@
 </div>
 {% endif %}
 
+<h2>Live write test</h2>
+<div class="muted" style="margin-bottom:6px">Performs a real PATCH to the List, re-writing an existing value (nothing changes).
+  This proves whether this app's Graph credentials can actually write - and shows the exact error if not.</div>
+<form method="post" action="/admin/diagnostics/writetest">
+  <button class="btn primary" type="submit">Run live write test</button>
+</form>
+{% if result %}
+<div class="callout {{ '' if result.ok else 'block' }}" style="margin:10px 0;{{ 'background:var(--brand-lime-bg);border-left-color:var(--brand-lime-dark)' if result.ok }}">
+  <div class="h">Write test result</div>
+  <code style="font-size:12px">{{ result.msg }}</code>
+</div>
+{% endif %}
+
 <h2>Runtime</h2>
 <div style="overflow-x:auto">
 <table>
