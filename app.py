@@ -24,7 +24,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from config import settings
 import auth
 from data.loader import (load_initiatives, update_initiative, create_initiative,
-                         delete_initiative, create_task, clear_cache)
+                         delete_initiative, create_task, clear_cache, last_error)
 from data import source
 from data.models import STATUS_COLORS, STATUS_ICONS, TYPE_TASK
 from utils.pacing import enrich_dataframe, summary_stats
@@ -401,11 +401,7 @@ def admin():
                            roles=users.SETTABLE, admins=sorted(settings.ADMIN_EMAILS))
 
 
-@app.route("/admin/diagnostics")
-@auth.require_admin
-def admin_diagnostics():
-    """Runtime truth for the LIVE app: are writes actually going to the List, and
-    is a stale local overlay shadowing it? Answers 'it saved but reverted'."""
+def _diag_info():
     import os
     from pathlib import Path
     from data.loader import _load_edits
@@ -432,7 +428,42 @@ def admin_diagnostics():
         "initiatives MISSING sp_id": sp_missing,
         "SYNC_SCHEDULE_ENABLED": settings.SYNC_SCHEDULE_ENABLED,
     }
+    return diag, edits, inits
+
+
+@app.route("/admin/diagnostics")
+@auth.require_admin
+def admin_diagnostics():
+    """Runtime truth for the LIVE app: are writes actually reaching the List?"""
+    diag, edits, _ = _diag_info()
     return render_template("diagnostics.html", nav="admin", diag=diag, edits=edits)
+
+
+@app.route("/admin/diagnostics/writetest", methods=["POST"])
+@auth.require_admin
+def admin_write_test():
+    """Attempt a REAL write to the List (re-writing a field's existing value, so
+    nothing changes) and report the exact result - including the Graph error."""
+    from data.models import INTERNAL_TO_GRAPH
+    from data.graph_client import get_graph_client
+    diag, edits, inits = _diag_info()
+    result = {}
+    try:
+        have = inits[inits["sp_id"].astype(str).str.strip() != ""]
+        if have.empty:
+            raise RuntimeError("no initiative has an sp_id to test against")
+        row = have.iloc[0]
+        sp = str(row["sp_id"])
+        col = INTERNAL_TO_GRAPH["last_updated_by"]
+        current = row.get("last_updated_by") or "write-test"
+        get_graph_client().update_item(sp, {col: current})   # same value = no-op
+        result = {"ok": True,
+                  "msg": f"PASSED - PATCHed item {sp} field {col} successfully. "
+                         f"This app CAN write to the List."}
+    except Exception as e:
+        result = {"ok": False,
+                  "msg": f"FAILED - {type(e).__name__}: {str(e)[:900]}"}
+    return render_template("diagnostics.html", nav="admin", diag=diag, edits=edits, result=result)
 
 
 @app.route("/api/admin/user", methods=["POST"])
@@ -520,8 +551,8 @@ def _editable(f) -> dict:
 @app.route("/api/initiative/<item_id>", methods=["POST"])
 @auth.require_role("SLT")
 def api_update(item_id):
-    update_initiative(item_id, _editable(request.form), sp_id=request.form.get("sp_id") or None)
-    return _row(item_id)
+    ok = update_initiative(item_id, _editable(request.form), sp_id=request.form.get("sp_id") or None)
+    return _row(item_id, error=(None if ok else (last_error() or "Save failed")))
 
 
 @app.route("/api/initiative", methods=["POST"])
@@ -606,13 +637,14 @@ def api_task_update(task_id):
     return "", 200
 
 
-def _row(item_id):
-    """Re-render one initiative row (HTMX swap) with fresh roll-up."""
+def _row(item_id, error=None):
+    """Re-render one initiative row (HTMX swap) with fresh roll-up. `error` shows
+    a visible failure banner so a rejected save can't look like it worked."""
     inits, tasks = _hierarchy()
     row = inits[inits["id"].astype(str) == str(item_id)]
     if row.empty:
         return "", 200
-    return render_template("_row.html", r=row.iloc[0].to_dict(),
+    return render_template("_row.html", r=row.iloc[0].to_dict(), error=error,
                            children=rollup.children_of(tasks, item_id).to_dict("records"),
                            leaders=sorted(settings.ROLES_CONFIG.get("users", {}).keys()),
                            statuses=STATUSES, task_statuses=TASK_STATUSES)

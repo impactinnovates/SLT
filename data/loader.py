@@ -16,9 +16,23 @@ import re
 import json
 import time
 import uuid
+import logging
 from pathlib import Path
 
 import pandas as pd
+
+log = logging.getLogger(__name__)
+
+# Last write error, so a failed save can be shown to the user instead of vanishing.
+_LAST_ERROR = {"msg": None}
+
+
+def _set_error(msg):
+    _LAST_ERROR["msg"] = msg
+
+
+def last_error():
+    return _LAST_ERROR["msg"]
 
 from config import settings
 from data import source
@@ -203,6 +217,8 @@ def _live_write(sp_id, fields: dict) -> bool:
 
 
 def update_initiative(item_id: str, fields: dict, sp_id=None) -> bool:
+    """True on success. On failure the reason is logged AND kept in last_error()
+    so the UI can show it - a failed save must never look like a success."""
     try:
         if settings.LIST_WRITE_ENABLED and settings.graph_is_configured() and sp_id:
             _live_write(sp_id, fields)
@@ -212,8 +228,11 @@ def update_initiative(item_id: str, fields: dict, sp_id=None) -> bool:
             edits[str(item_id)].update({k: v for k, v in fields.items() if k != "id"})
             _save_edits(edits)
         clear_cache()
+        _set_error(None)
         return True
-    except Exception:
+    except Exception as e:
+        log.exception("update_initiative(%s) failed", item_id)
+        _set_error(f"{type(e).__name__}: {e}")
         return False
 
 
