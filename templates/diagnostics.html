@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Admin &middot; Diagnostics</h1>
+<div class="muted">The live app's runtime truth. Use this when an edit "saves" but reverts.</div>
+
+{% if not diag['LIST_WRITE_ENABLED'] or not diag['graph_is_configured'] %}
+<div class="callout block" style="margin:12px 0">
+  <div class="h">Writes are NOT reaching the List</div>
+  Edits are being staged in a local file instead. Set <code>LIST_WRITE_ENABLED=true</code>
+  (and ensure the GRAPH_* credentials are present) on the app, then restart.
+</div>
+{% endif %}
+
+{% if diag['EDITS_PATH env var set?'] != '(not set - good)' %}
+<div class="callout block" style="margin:12px 0">
+  <div class="h">EDITS_PATH is set as an app setting - remove it</div>
+  A relative <code>EDITS_PATH</code> resolves into the <b>code folder</b>, which Azure wipes on
+  every deploy/restart and is per-instance. Staged edits appear to save, then vanish.
+  Delete the <code>EDITS_PATH</code> app setting so it defaults to persistent storage.
+</div>
+{% endif %}
+
+{% if diag['overlay entries'] %}
+<div class="callout" style="margin:12px 0;background:#fff6e2;border-left-color:#d97706">
+  <div class="h">A local overlay exists and is shadowing live List data</div>
+  {{ diag['overlay entries'] }} staged entr{{ 'y' if diag['overlay entries'] == 1 else 'ies' }} are applied
+  on top of every read, so they can mask what the List actually says.
+</div>
+{% endif %}
+
+<h2>Runtime</h2>
+<div style="overflow-x:auto">
+<table>
+  <tbody>
+  {% for k, v in diag.items() %}
+    <tr><td style="font-weight:600;white-space:nowrap">{{ k }}</td><td><code>{{ v }}</code></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if edits %}
+<h2>Staged overlay contents</h2>
+<div style="overflow-x:auto">
+<table>
+  <thead><tr><th>Item id</th><th>Staged fields</th></tr></thead>
+  <tbody>
+  {% for k, v in edits.items() %}
+    <tr><td>{{ k }}</td><td><code style="font-size:11px">{{ v }}</code></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}
