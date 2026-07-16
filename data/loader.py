@@ -61,7 +61,11 @@ def load_initiatives(force: bool = False) -> pd.DataFrame:
         return _CACHE["initiatives"].copy()
     df = source.fetch_initiatives()
     df = _clean_df(df)
-    df = _apply_overlay(df)
+    # The overlay is a STAGING fallback for when we can't write to the List. Once
+    # live write-back is on, applying it can only mask what the List really says
+    # (a stale staged value would silently shadow a real save), so skip it.
+    if not (settings.LIST_WRITE_ENABLED and settings.graph_is_configured()):
+        df = _apply_overlay(df)
     _CACHE["initiatives"] = df
     _CACHE["_ts"] = time.time()
     return df.copy()

@@ -104,6 +104,7 @@ def _inject():
             "source_label": source.source_label(),
             "status_colors": STATUS_COLORS, "status_icons": STATUS_ICONS,
             "auth_enabled": auth.AUTH_ENABLED, "is_admin": auth.is_admin(),
+            "writes": settings.LIST_WRITE_ENABLED,
             "statuses": STATUSES, "task_statuses": TASK_STATUSES,
             "leaders": sorted(settings.ROLES_CONFIG.get("users", {}).keys())}
 
@@ -398,6 +399,40 @@ def admin():
     from data import users
     return render_template("admin.html", nav="admin", users=users.all_users(),
                            roles=users.SETTABLE, admins=sorted(settings.ADMIN_EMAILS))
+
+
+@app.route("/admin/diagnostics")
+@auth.require_admin
+def admin_diagnostics():
+    """Runtime truth for the LIVE app: are writes actually going to the List, and
+    is a stale local overlay shadowing it? Answers 'it saved but reverted'."""
+    import os
+    from pathlib import Path
+    from data.loader import _load_edits
+    edits = _load_edits()
+    p = Path(settings.EDITS_PATH)
+    inits, _ = rollup.split_hierarchy(load_initiatives())
+    sp_missing = 0
+    if not inits.empty and "sp_id" in inits.columns:
+        sp_missing = int(inits["sp_id"].astype(str).str.strip().isin(["", "nan", "None"]).sum())
+    diag = {
+        "LIST_WRITE_ENABLED": settings.LIST_WRITE_ENABLED,
+        "graph_is_configured": settings.graph_is_configured(),
+        "source": source.source_label(),
+        "writes_go_to": ("the SharePoint List" if (settings.LIST_WRITE_ENABLED and settings.graph_is_configured())
+                         else "LOCAL OVERLAY FILE (not the List!)"),
+        "EDITS_PATH": str(p),
+        "EDITS_PATH env var set?": os.environ.get("EDITS_PATH") or "(not set - good)",
+        "overlay file exists": p.exists(),
+        "overlay entries": len(edits),
+        "overlay item ids": sorted(edits.keys())[:25],
+        "on Azure (WEBSITE_SITE_NAME)": os.environ.get("WEBSITE_SITE_NAME") or "(local)",
+        "instance id": (os.environ.get("WEBSITE_INSTANCE_ID") or "(n/a)")[:12],
+        "initiatives loaded": len(inits),
+        "initiatives MISSING sp_id": sp_missing,
+        "SYNC_SCHEDULE_ENABLED": settings.SYNC_SCHEDULE_ENABLED,
+    }
+    return render_template("diagnostics.html", nav="admin", diag=diag, edits=edits)
 
 
 @app.route("/api/admin/user", methods=["POST"])
