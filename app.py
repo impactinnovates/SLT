@@ -69,6 +69,22 @@ def _date(val):
     return str(val)
 
 
+@app.template_filter("numval")
+def _numval(val):
+    """Form-input-safe number: blank for None/NaN so an input never renders the
+    literal text 'nan' (which would round-trip back and break write-back)."""
+    if val is None:
+        return ""
+    try:
+        f = float(val)
+        if f != f:                      # NaN
+            return ""
+        return str(int(f)) if f == int(f) else str(f)
+    except (TypeError, ValueError):
+        s = str(val).strip()
+        return "" if s.lower() in ("nan", "none") else s
+
+
 @app.template_filter("date_iso")
 def _date_iso(val):
     """YYYY-MM-DD for prefilling <input type=date>; empty when unknown."""

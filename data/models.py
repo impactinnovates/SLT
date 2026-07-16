@@ -123,12 +123,18 @@ CATEGORY_LABELS = {
 
 
 def parse_currency(val: str) -> Optional[float]:
-    """Parse '$1,234,567' or '1234567' → float. Returns None if empty."""
-    if not val or str(val).strip() in ("", "0", "$0"):
+    """Parse '$1,234,567' or '1234567' → float. Returns None if empty.
+
+    NOTE: float('nan') succeeds, so the literal text 'nan' (which a form input can
+    contain when a blank financial round-trips through the page) would otherwise
+    come back as NaN and later blow up JSON serialization on write-back."""
+    if not val or str(val).strip().lower() in ("", "0", "$0", "nan", "none"):
         return None
     cleaned = str(val).replace("$", "").replace(",", "").strip()
     try:
         v = float(cleaned)
+        if v != v:                 # NaN
+            return None
         return v if v != 0 else None
     except ValueError:
         return None

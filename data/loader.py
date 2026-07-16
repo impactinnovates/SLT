@@ -192,6 +192,12 @@ def _to_graph_fields(fields: dict) -> dict:
             continue
         if v is None or (isinstance(v, str) and not v.strip()):
             continue
+        # NaN is not JSON-serializable: one NaN would fail the WHOLE PATCH (and
+        # therefore lose every other edited field). Treat it as "no value".
+        if isinstance(v, float) and v != v:
+            continue
+        if isinstance(v, str) and v.strip().lower() in ("nan", "none"):
+            continue
         if k in _GRAPH_DATE_FIELDS:
             v = _iso_date(v)
             if v is None:
