@@ -179,9 +179,9 @@
           <div class="fld"><label>Blockers</label><textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
         </div>
         <div class="frow">
-          <div class="fld"><label>Realized Revenue</label><input name="realized_revenue" value="{{ r.realized_revenue or '' }}"></div>
-          <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda or '' }}"></div>
-          <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda" value="{{ r.forecasted_ebitda or '' }}"></div>
+          <div class="fld"><label>Realized Revenue</label><input name="realized_revenue" value="{{ r.realized_revenue|numval }}"></div>
+          <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda|numval }}"></div>
+          <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda" value="{{ r.forecasted_ebitda|numval }}"></div>
         </div>
         <button class="btn primary" type="submit">Save Changes</button>
         <button class="btn danger" type="button"
