@@ -207,6 +207,10 @@ def _to_graph_fields(fields: dict) -> dict:
                 v = round(float(v) / 100.0, 4)
             except (TypeError, ValueError):
                 continue
+        elif k == "project_link" and not isinstance(v, dict):
+            # Hyperlink columns take {Url, Description}, not a bare string
+            # (a plain string is rejected with a 400 invalidRequest).
+            v = {"Url": str(v), "Description": str(v)}
         out[INTERNAL_TO_GRAPH[k]] = v
     return out
 

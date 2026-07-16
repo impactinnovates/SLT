@@ -108,6 +108,8 @@
       <span><b>Region:</b> {{ r.region or '-' }}</span>
       <span><b>Priority:</b> P{{ r.priority or '-' }}</span>
       <span><b>Target:</b> {{ r.target_completion|date }}</span>
+      {% if r.last_updated_by and r.last_updated_by not in ('nan','None') %}
+        <span><b>Last updated by:</b> {{ r.last_updated_by }}</span>{% endif %}
     </div>
     {% if user.role == 'SLT' and (r.forecasted_ebitda or r.forecasted_revenue or r.forecasted_cost) %}
     <div class="fin">
