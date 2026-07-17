@@ -115,6 +115,32 @@ def alert_reason(row):
 
 
 @app.template_global()
+def my_alert_count():
+    """Count of things needing THIS user's attention, for the nav badge. SLT: any
+    initiative tripping an alert. Leader/Member: their tasks that are overdue or in
+    a needs-attention status. Uses the cached frame; fails soft to 0."""
+    from datetime import date as _date
+    u = getattr(g, "user", None)
+    if not u:
+        return 0
+    try:
+        inits, tasks = _hierarchy()
+    except Exception:
+        return 0
+    if u["role"] == "SLT":
+        return int(sum(1 for _, r in inits.iterrows() if rollup.alert_reason(r)))
+    recs = _my_tasks(tasks, u).to_dict("records")
+
+    def _needs(t):
+        if t.get("status") in ("Behind", "At Risk", "Blocked"):
+            return True
+        d = t.get("target_completion")
+        return bool(d and hasattr(d, "year") and d < _date.today()
+                    and t.get("status") != "Completed")
+    return sum(1 for t in recs if _needs(t))
+
+
+@app.template_global()
 def synced_info(item_id):
     """If this initiative's financial fields are driven by the Cost Takeout
     tracker, return {fields, sources, at}; else None. Drives the edit-form lock so
@@ -442,8 +468,39 @@ def board():
             })
         regions.sort(key=lambda r: (_THUMB_ORDER.get(r["thumb"], 9), -r["count"]))
 
+    # ── Portfolio executive summary (the top-line read for the board) ──────────
+    with_e_all = inits[has_e] if not inits.empty else inits
+    overall = perf.summarize(with_e_all, yf) if not with_e_all.empty else {"thumb": "none"}
+    thumb = overall.get("thumb", "none")
+    total = stats.get("total", 0) or 0
+    if thumb == "none" and total:                 # no EBITDA data: read the status mix
+        bad = (stats.get("behind", 0) + stats.get("blocked", 0)) / total
+        risk = stats.get("at_risk", 0) / total
+        thumb = "down" if bad >= 0.25 else ("side" if (bad + risk) >= 0.25 else "up")
+
+    sev = {"Behind": 0, "Blocked": 1, "At Risk": 2}
+    top_names = []
+    if not att.empty:
+        a = att.copy()
+        a["_s"] = a["status"].map(sev).fillna(9)
+        top_names = a.sort_values("_s")["name"].head(3).tolist()
+
+    lines = [f"{total} initiative{'s' if total != 1 else ''} tracked: "
+             f"{stats.get('on_track', 0)} on track, {stats.get('at_risk', 0)} at risk, "
+             f"{stats.get('behind', 0)} behind, {stats.get('blocked', 0)} blocked, "
+             f"{stats.get('completed', 0)} completed."]
+    if stats.get("total_forecasted_ebitda"):
+        lines.append(f"Realized EBITDA {_currency(stats['total_realized_ebitda'])} "
+                     f"({stats.get('ebitda_pct', 0)}% of the "
+                     f"{_currency(stats['total_forecasted_ebitda'])} forecast).")
+    if top_names:
+        n = len(att)
+        lines.append(f"{n} initiative{'s' if n != 1 else ''} need attention, "
+                     f"led by {', '.join(top_names)}.")
+    exec_summary = {"thumb": thumb, "lines": lines}
+
     return render_template("board.html", nav="board", stats=stats, regions=regions,
-                           attention=att.to_dict("records"),
+                           attention=att.to_dict("records"), exec_summary=exec_summary,
                            generated=date.today().strftime("%B %d, %Y"))
 
 
@@ -596,7 +653,31 @@ def tasks_view():
               "overdue": sum(1 for t in mine_records if _overdue(t)),
               "done": _cnt("Completed")}
     tprogress = perf.progress_summary(mine, perf.year_fraction())
-    return render_template("tasks.html", nav="tasks", tasks=mine_records,
+
+    # Leaders manage a team, so group their view by assignee (their own work first,
+    # then each team member) with a per-person read. Members get the flat list.
+    team = None
+    if can_assign:
+        from collections import defaultdict
+        buckets = defaultdict(list)
+        for t in mine_records:
+            buckets[(str(t.get("owner") or "").strip() or "Unassigned")].append(t)
+
+        def _gstats(items):
+            pcts = [(x.get("pct_complete") or 0) for x in items]
+            return {"total": len(items),
+                    "done": sum(1 for x in items if x.get("status") == "Completed"),
+                    "attention": sum(1 for x in items if x.get("status") in ("Behind", "At Risk", "Blocked")),
+                    "overdue": sum(1 for x in items if _overdue(x)),
+                    "avg": round(sum(pcts) / len(pcts)) if pcts else 0}
+
+        mynames = _identity(g.user)
+        team = sorted(
+            ({"member": k, "is_me": k.strip().lower() in mynames,
+              "tasks": v, "stats": _gstats(v)} for k, v in buckets.items()),
+            key=lambda grp: (0 if grp["is_me"] else 1, grp["member"].lower()))
+
+    return render_template("tasks.html", nav="tasks", tasks=mine_records, team=team,
                            task_statuses=TASK_STATUSES, can_assign=can_assign,
                            tstats=tstats, tprogress=tprogress)
 
