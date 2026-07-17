@@ -156,6 +156,8 @@
     </div>
   </nav>
   <datalist id="ieg-people">{% for l in leaders %}<option value="{{ l }}"></option>{% endfor %}</datalist>
+  <datalist id="ieg-regions">{% for x in regions %}<option value="{{ x }}"></option>{% endfor %}</datalist>
+  <datalist id="ieg-categories">{% for x in categories %}<option value="{{ x }}"></option>{% endfor %}</datalist>
   {% if source_label == 'live' and not writes %}
   <div class="writewarn">&#9888; <b>Write-back is OFF.</b> You are viewing live List data, but edits are being
     staged locally and are <b>NOT</b> saved to the SharePoint List. Set <code>LIST_WRITE_ENABLED=true</code> on the app.</div>

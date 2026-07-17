@@ -114,6 +114,23 @@ def alert_reason(row):
     return rollup.alert_reason(row)
 
 
+def _distinct(col):
+    """Distinct non-empty values of a column, for edit-form datalist suggestions.
+    Reads the already-cached frame so it costs nothing extra; only the SLT edit
+    form uses these, so skip the work for Leader/Member requests."""
+    u = getattr(g, "user", None)
+    if not u or u.get("role") != "SLT":
+        return []
+    try:
+        df = load_initiatives()
+        if col not in df.columns:
+            return []
+        return sorted(v for v in df[col].dropna().astype(str).str.strip().unique()
+                      if v and v.lower() not in ("nan", "none"))
+    except Exception:
+        return []
+
+
 @app.context_processor
 def _inject():
     return {"user": getattr(g, "user", None),
@@ -122,6 +139,7 @@ def _inject():
             "auth_enabled": auth.AUTH_ENABLED, "is_admin": auth.is_admin(),
             "writes": settings.LIST_WRITE_ENABLED,
             "statuses": STATUSES, "task_statuses": TASK_STATUSES,
+            "regions": _distinct("region"), "categories": _distinct("category"),
             "leaders": sorted(settings.ROLES_CONFIG.get("users", {}).keys())}
 
 
@@ -558,7 +576,10 @@ def _editable(f) -> dict:
             if v:
                 out[k] = v
         # Key metadata: only overwrite fields actually submitted by the form.
-        for k in ("owner", "sponsor", "region", "priority", "description"):
+        # (project_link is a plain URL here; loader._to_graph_fields wraps it into
+        # the {Url, Description} shape the SharePoint Hyperlink column needs.)
+        for k in ("owner", "sponsor", "region", "category", "priority",
+                  "description", "project_link"):
             if f.get(k) is not None:
                 out[k] = f.get(k).strip() if isinstance(f.get(k), str) else f.get(k)
     return out

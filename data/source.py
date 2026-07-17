@@ -42,6 +42,13 @@ def _from_graph() -> pd.DataFrame:
     if "_sp_item_id" in df.columns:
         df["sp_id"] = df["_sp_item_id"]
     out = df.rename(columns={k: v for k, v in GRAPH_MAP.items() if k in df.columns})
+    # A Hyperlink column comes back as {"Url":..., "Description":...}. Flatten it to
+    # the URL string now, before _clean_df stringifies object columns into reprs
+    # (which would leave the edit form showing "{'Url': ...}"). Write-back re-wraps
+    # the string into the dict shape the column needs.
+    if "project_link" in out.columns:
+        out["project_link"] = out["project_link"].apply(
+            lambda v: v.get("Url", "") if isinstance(v, dict) else v)
     # The List stores % Complete as a 0-1 fraction; the rest of the app works in
     # 0-100. Scale up on read so pacing, progress bars and the form all agree.
     if "pct_complete" in out.columns:
