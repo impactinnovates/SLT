@@ -67,11 +67,13 @@
   <span class="ti">{{ status_icons.get(t.status,'⚪') }} <b>{{ t.name }}</b>
     <span class="muted">· {{ t.owner or 'unassigned' }}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span></span>
   {% if editable %}
-  <form class="tinline" hx-post="/api/task/{{ t.id }}" hx-swap="none">
+  <form class="tinline" hx-post="/api/task/{{ t.id }}"
+        hx-target="#tsave-{{ t.id }}" hx-swap="innerHTML">
     <select name="status">{% for s in task_statuses %}<option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}</select>
     <input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}" style="width:58px">
     <input name="next_action" placeholder="next action" value="{{ t.next_action if t.next_action not in ('nan','None') else '' }}" style="width:150px">
     <button class="btn primary" type="submit">Save</button>
+    <span class="savemsg" id="tsave-{{ t.id }}"></span>
   </form>
   {% else %}
   <span class="pill" style="background:{{ c }}18;color:{{ c }};border-color:{{ c }}44">{{ t.status }} · {{ (t.pct_complete or 0)|round|int }}%</span>

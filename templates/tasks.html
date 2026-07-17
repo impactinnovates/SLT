@@ -39,18 +39,20 @@
     <div class="body">
       {% if t.parent_name %}<div class="metarow"><span><b>Part of:</b> {{ t.parent_name }}</span>
         {% if t.owner %}<span><b>Owner:</b> {{ t.owner }}</span>{% endif %}</div>{% endif %}
-      <form class="editform" hx-post="/api/task/{{ t.id }}" hx-swap="none">
+      <form class="editform" hx-post="/api/task/{{ t.id }}"
+            hx-target="#tsave-{{ t.id }}" hx-swap="innerHTML">
         <div class="frow">
           <div class="fld"><label>Status</label>
             <select name="status">{% for s in task_statuses %}<option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}</select></div>
           <div class="fld"><label>% Complete</label>
-            <input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}"></div>
+            <div class="pctwrap"><input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}"><span class="pctsign">%</span></div></div>
         </div>
         <div class="frow">
           <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ t.next_action if t.next_action not in ('nan','None') else '' }}</textarea></div>
           <div class="fld"><label>Blocker</label><textarea name="blockers" rows="2">{{ t.blockers if t.blockers not in ('nan','None') else '' }}</textarea></div>
         </div>
         <button class="btn primary" type="submit">Save Update</button>
+        <span class="savemsg" id="tsave-{{ t.id }}"></span>
       </form>
 
       {% if t.subs %}
@@ -73,7 +75,7 @@
         <form class="editform" method="post" action="/api/initiative/{{ t.id }}/task">
           <div class="frow">
             <div class="fld" style="flex:2"><label>Sub-task name</label><input name="name" required style="width:100%"></div>
-            <div class="fld"><label>Assign to</label><input name="owner" placeholder="team member name"></div>
+            <div class="fld"><label>Assign to</label><input name="owner" list="ieg-people" placeholder="team member name"></div>
             <div class="fld"><label>Target</label><input type="date" name="target_completion"></div>
           </div>
           <button class="btn primary" type="submit">Add sub-task</button>

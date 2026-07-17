@@ -205,10 +205,18 @@ def _my_tasks(tasks: pd.DataFrame, user) -> pd.DataFrame:
     if role == "SLT":
         return tasks
     me = _identity(user)
-    owner = tasks.get("owner", pd.Series([""] * len(tasks))).astype(str).str.strip().str.lower()
+
+    def col(name):
+        # A missing column's fallback MUST carry tasks.index, or the boolean mask
+        # gets reindexed to NaN->False and silently drops the wrong rows - a task
+        # visibility bug (who sees what). tasks is filtered, so its index is sparse.
+        s = tasks[name] if name in tasks.columns else pd.Series("", index=tasks.index)
+        return s.astype(str).str.strip().str.lower()
+
+    owner = col("owner")
     if role == "Member":
         return tasks[owner.isin(me)]
-    creator = tasks.get("created_by", pd.Series([""] * len(tasks))).astype(str).str.strip().str.lower()
+    creator = col("created_by")
     return tasks[owner.isin(me) | creator.isin(me)]
 
 
@@ -713,8 +721,14 @@ def api_task_update(task_id):
               "next_action": request.form.get("next_action", ""),
               "blockers": request.form.get("blockers", ""),
               "last_updated_by": g.user["name"]}
-    update_initiative(task_id, fields, sp_id=(t.get("sp_id") or None))
-    return "", 200
+    ok = update_initiative(task_id, fields, sp_id=(t.get("sp_id") or None))
+    # Return a visible confirmation (swapped into the form's save-status span) so a
+    # task update never looks like it did nothing - the silent-save failure mode.
+    if ok:
+        now = datetime.now()
+        t12 = f"{(now.hour % 12) or 12}:{now.minute:02d} {'AM' if now.hour < 12 else 'PM'}"
+        return f'<span class="ok">&#10003; Saved {t12}</span>'
+    return f'<span class="err">&#9888; Not saved: {(last_error() or "try again")}</span>', 200
 
 
 def _row(item_id, error=None):
