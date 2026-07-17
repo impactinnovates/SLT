@@ -468,8 +468,39 @@ def board():
             })
         regions.sort(key=lambda r: (_THUMB_ORDER.get(r["thumb"], 9), -r["count"]))
 
+    # ── Portfolio executive summary (the top-line read for the board) ──────────
+    with_e_all = inits[has_e] if not inits.empty else inits
+    overall = perf.summarize(with_e_all, yf) if not with_e_all.empty else {"thumb": "none"}
+    thumb = overall.get("thumb", "none")
+    total = stats.get("total", 0) or 0
+    if thumb == "none" and total:                 # no EBITDA data: read the status mix
+        bad = (stats.get("behind", 0) + stats.get("blocked", 0)) / total
+        risk = stats.get("at_risk", 0) / total
+        thumb = "down" if bad >= 0.25 else ("side" if (bad + risk) >= 0.25 else "up")
+
+    sev = {"Behind": 0, "Blocked": 1, "At Risk": 2}
+    top_names = []
+    if not att.empty:
+        a = att.copy()
+        a["_s"] = a["status"].map(sev).fillna(9)
+        top_names = a.sort_values("_s")["name"].head(3).tolist()
+
+    lines = [f"{total} initiative{'s' if total != 1 else ''} tracked: "
+             f"{stats.get('on_track', 0)} on track, {stats.get('at_risk', 0)} at risk, "
+             f"{stats.get('behind', 0)} behind, {stats.get('blocked', 0)} blocked, "
+             f"{stats.get('completed', 0)} completed."]
+    if stats.get("total_forecasted_ebitda"):
+        lines.append(f"Realized EBITDA {_currency(stats['total_realized_ebitda'])} "
+                     f"({stats.get('ebitda_pct', 0)}% of the "
+                     f"{_currency(stats['total_forecasted_ebitda'])} forecast).")
+    if top_names:
+        n = len(att)
+        lines.append(f"{n} initiative{'s' if n != 1 else ''} need attention, "
+                     f"led by {', '.join(top_names)}.")
+    exec_summary = {"thumb": thumb, "lines": lines}
+
     return render_template("board.html", nav="board", stats=stats, regions=regions,
-                           attention=att.to_dict("records"),
+                           attention=att.to_dict("records"), exec_summary=exec_summary,
                            generated=date.today().strftime("%B %d, %Y"))
 
 
