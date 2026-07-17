@@ -166,25 +166,51 @@
         <div class="frow">
           <div class="fld"><label>Owner</label><input name="owner" list="ieg-people" value="{{ r.owner if r.owner not in ('nan','None') else '' }}"></div>
           <div class="fld"><label>Sponsor</label><input name="sponsor" list="ieg-people" value="{{ r.sponsor if r.sponsor not in ('nan','None') else '' }}"></div>
-          <div class="fld"><label>Region</label><input name="region" value="{{ r.region if r.region not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Region</label><input name="region" list="ieg-regions" value="{{ r.region if r.region not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Category</label><input name="category" list="ieg-categories" value="{{ r.category if r.category not in ('nan','None') else '' }}"></div>
+          {# value="{{ p }}" matters: without it the option submits its LABEL ("P1")
+             instead of the stored value ("1"), which corrupts Priority on save. #}
           <div class="fld"><label>Priority</label>
             <select name="priority"><option value=""></option>
-              {% for p in ['1','2','3'] %}<option {{ 'selected' if (r.priority|string)==p }}>P{{ p }}</option>{% endfor %}</select></div>
+              {% for p in ['1','2','3'] %}<option value="{{ p }}" {{ 'selected' if (r.priority|string)==p }}>P{{ p }}</option>{% endfor %}</select></div>
         </div>
+        <div class="frow">
+          <div class="fld" style="flex:2"><label>Description</label><input name="description" value="{{ r.description if r.description not in ('nan','None') else '' }}"></div>
+          <div class="fld" style="flex:2"><label>Project Link</label>
+            <input type="url" name="project_link" placeholder="https://..."
+                   value="{{ r.project_link if r.project_link not in ('nan','None') else '' }}"></div>
+        </div>
+
+        <div class="subt" style="margin-top:10px">Dates</div>
         <div class="frow">
           <div class="fld"><label>Start Date</label><input type="date" name="start_date" value="{{ r.start_date|date_iso }}"></div>
           <div class="fld"><label>Target Completion</label><input type="date" name="target_completion" value="{{ r.target_completion|date_iso }}"></div>
-          <div class="fld" style="flex:2"><label>Description</label><input name="description" value="{{ r.description if r.description not in ('nan','None') else '' }}"></div>
+          <div class="fld"><label>Revised Completion</label><input type="date" name="revised_completion" value="{{ r.revised_completion|date_iso }}"></div>
+          <div class="fld"><label>Actual Completion</label><input type="date" name="actual_completion" value="{{ r.actual_completion|date_iso }}"></div>
+          <div class="fld"><label>Benefit Start Date</label><input type="date" name="benefit_start_date" value="{{ r.benefit_start_date|date_iso }}"></div>
         </div>
+
+        <div class="subt" style="margin-top:10px">Narrative</div>
         <div class="frow">
+          <div class="fld"><label>Completed Actions</label><textarea name="completed_actions" rows="2">{{ r.completed_actions if r.completed_actions not in ('nan','None') else '' }}</textarea></div>
           <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ r.next_action if r.next_action not in ('nan','None') else '' }}</textarea></div>
           <div class="fld"><label>Blockers</label><textarea name="blockers" rows="2">{{ r.blockers if r.blockers not in ('nan','None') else '' }}</textarea></div>
         </div>
+
+        <div class="subt" style="margin-top:10px">Financials</div>
         <div class="frow">
+          <div class="fld"><label>Forecast Revenue</label><input name="forecasted_revenue" value="{{ r.forecasted_revenue|numval }}"></div>
           <div class="fld"><label>Realized Revenue</label><input name="realized_revenue" value="{{ r.realized_revenue|numval }}"></div>
-          <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda|numval }}"></div>
           <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda" value="{{ r.forecasted_ebitda|numval }}"></div>
+          <div class="fld"><label>Realized EBITDA</label><input name="realized_ebitda" value="{{ r.realized_ebitda|numval }}"></div>
+          <div class="fld"><label>Forecast Cost</label><input name="forecasted_cost" value="{{ r.forecasted_cost|numval }}"></div>
+          <div class="fld"><label>Realized Cost</label><input name="realized_cost" value="{{ r.realized_cost|numval }}"></div>
         </div>
+        {% if r.id|string in ('236','237') %}
+        <div class="muted" style="margin:-2px 0 8px">
+          Realized EBITDA and % Complete on this initiative are overwritten by the
+          nightly Cost Takeout Tracker sync - edit the tracker, not this field.</div>
+        {% endif %}
         <button class="btn primary" type="submit">Save Changes</button>
         <button class="btn danger" type="button"
                 hx-post="/api/initiative/{{ r.id }}/delete"
