@@ -2,40 +2,34 @@
 data/source.py
 Single entry point for "where does initiative data come from".
 
-  graph_is_configured()  ->  live SharePoint List via app-only Graph
-  otherwise              ->  the local CSV export (data/Strategic_Initiatives_2026.csv)
+The SharePoint List is the only source of truth. There is deliberately no local
+fallback: a stale CSV that silently stands in for the List looks identical to
+live data on screen, and the SLT would have no way to tell they were reading
+last quarter's numbers. If Graph is not configured we raise instead.
 
-Both paths return a DataFrame with the same internal column names (see
-data/models.py), so everything downstream (pacing, views) is source-agnostic.
-The app runs fully today on the CSV and flips to live the moment the GRAPH_*
-credentials + admin consent are in place — no code change required.
-
-NOTE: GRAPH_MAP in models.py maps the List's *internal* column names to our
-internal fields. Those internal names are currently best-guesses; the probe
-(probe_list_connection.py) prints the real ones so we can reconcile GRAPH_MAP
-before turning the live read path on for users.
+Returns a DataFrame with the internal column names in data/models.py, so
+everything downstream (pacing, roll-up, views) stays source-agnostic.
 """
 import pandas as pd
 
 from config import settings
-from data.models import CSV_MAP, GRAPH_MAP
+from data.models import GRAPH_MAP
 
 
 def source_label() -> str:
-    """'live' when reading the SharePoint List, 'csv' when on the local export."""
-    return "live" if settings.graph_is_configured() else "csv"
+    """'live' when the List is reachable; 'unconfigured' when GRAPH_* is unset."""
+    return "live" if settings.graph_is_configured() else "unconfigured"
 
 
 def fetch_initiatives() -> pd.DataFrame:
     """Base initiatives DataFrame (unenriched, no edit overlay applied)."""
-    if settings.graph_is_configured():
-        return _from_graph()
-    return _from_csv()
-
-
-def _from_csv() -> pd.DataFrame:
-    df = pd.read_csv(settings.CSV_PATH, encoding="utf-8-sig")
-    return df.rename(columns={k: v for k, v in CSV_MAP.items() if k in df.columns})
+    if not settings.graph_is_configured():
+        raise RuntimeError(
+            "The SharePoint List is not configured, so there is no data to show. "
+            "Set GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, SITE_ID "
+            "and LIST_ID (see README.md / AZURE_RUNBOOK.md)."
+        )
+    return _from_graph()
 
 
 def _from_graph() -> pd.DataFrame:

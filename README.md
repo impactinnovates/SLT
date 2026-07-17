@@ -27,8 +27,11 @@ python app.py
 ```
 
 Open http://127.0.0.1:8502. With no Entra vars set, the app runs **open** as a dev
-SLT user, so every layer is viewable without a tenant. It reads the local CSV
-export (`data/Strategic_Initiatives_2026.csv`) until the live List is configured.
+SLT user, so every layer is viewable without a tenant.
+
+The SharePoint List is the only data source: local dev still needs the `GRAPH_*`
+vars in `.env` (see `.env.template`), and the app raises a clear error rather
+than starting on stale data if they are missing.
 
 Production (Azure App Service) runs `gunicorn -b 0.0.0.0:8502 wsgi:app`.
 
@@ -106,5 +109,7 @@ probe_list_connection.py         one-shot live-connection check
 ## Legacy
 
 The original Streamlit build (`views/`, `components/ui.py`, `components/filters.py`,
-and the old Streamlit entry) is superseded by the Flask app and no longer imported.
-`utils/pacing.py`, `components/financial_charts.py`, and `data/models.py` are reused.
+`setup.py`, `.streamlit/`) and the CSV seed export were removed once the live Graph
+connection became the source of truth. They remain in git history if ever needed:
+`git log --diff-filter=D --oneline -- views/`. `utils/pacing.py`,
+`components/financial_charts.py`, and `data/models.py` carried over into the Flask app.
