@@ -82,6 +82,71 @@
 {% endmacro %}
 
 
+{# ── One of MY tasks (Leader/Member workspace): update form + sub-tasks + add ── #}
+{% macro my_task_card(t, task_statuses, status_colors, status_icons, can_assign=false) %}
+{% set color = status_colors.get(t.status,'#94a3b8') %}
+<details class="init" style="border-left-color:{{ color }}">
+  <summary>
+    <span>{{ status_icons.get(t.status,'⚪') }}</span>
+    <span class="nm">{{ t.name }}</span>
+    {% set shown = (t.effective_pct if (t.task_count and t.task_count > 0) else t.pct_complete) or 0 %}
+    <span class="bar"><i style="width:{{ shown|float }}%;background:{{ color }}"></i></span>
+    <span class="meta">{{ shown|round|int }}%{% if t.task_count and t.task_count > 0 %} · {{ t.task_count }} sub-task{{ 's' if t.task_count != 1 }}{% endif %}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span>
+  </summary>
+  <div class="body">
+    <div class="metarow">
+      {% if t.parent_name %}<span><b>Part of:</b> {{ t.parent_name }}</span>{% endif %}
+      {% if t.owner %}<span><b>Assigned to:</b> {{ t.owner }}</span>{% endif %}
+      {% if t.target_completion %}<span><b>Due:</b> {{ t.target_completion|date }}</span>{% endif %}
+    </div>
+    <form class="editform" hx-post="/api/task/{{ t.id }}"
+          hx-target="#tsave-{{ t.id }}" hx-swap="innerHTML">
+      <div class="frow">
+        <div class="fld"><label>Status</label>
+          <select name="status">{% for s in task_statuses %}<option {{ 'selected' if t.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+        <div class="fld"><label>% Complete</label>
+          <div class="pctwrap"><input type="number" name="pct_complete" min="0" max="100" value="{{ (t.pct_complete or 0)|round|int }}"><span class="pctsign">%</span></div></div>
+      </div>
+      <div class="frow">
+        <div class="fld"><label>Next Action</label><textarea name="next_action" rows="2">{{ t.next_action if t.next_action not in ('nan','None') else '' }}</textarea></div>
+        <div class="fld"><label>Blocker</label><textarea name="blockers" rows="2">{{ t.blockers if t.blockers not in ('nan','None') else '' }}</textarea></div>
+      </div>
+      <button class="btn primary" type="submit">Save Update</button>
+      <span class="savemsg" id="tsave-{{ t.id }}"></span>
+    </form>
+
+    {% if t.subs %}
+    <div class="tasks">
+      <div class="subt">Sub-tasks ({{ t.subs|length }}) &middot; rolled {{ (t.rollup_pct or 0)|round|int }}%</div>
+      {% for s in t.subs %}
+      {% set sc = status_colors.get(s.status,'#94a3b8') %}
+      <div class="taskline" style="border-left-color:{{ sc }}">
+        <span class="ti">{{ status_icons.get(s.status,'⚪') }} <b>{{ s.name }}</b>
+          <span class="muted">· {{ s.owner or 'unassigned' }}</span></span>
+        <span class="pill" style="background:{{ sc }}18;color:{{ sc }};border-color:{{ sc }}44">{{ s.status }} · {{ (s.pct_complete or 0)|round|int }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if can_assign %}
+    <details class="addtask" style="margin-top:8px">
+      <summary class="btn ghost" style="display:inline-block">+ Add sub-task for my team</summary>
+      <form class="editform" method="post" action="/api/initiative/{{ t.id }}/task">
+        <div class="frow">
+          <div class="fld" style="flex:2"><label>Sub-task name</label><input name="name" required style="width:100%"></div>
+          <div class="fld"><label>Assign to</label><input name="owner" list="ieg-people" placeholder="team member name"></div>
+          <div class="fld"><label>Target</label><input type="date" name="target_completion"></div>
+        </div>
+        <button class="btn primary" type="submit">Add sub-task</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</details>
+{% endmacro %}
+
+
 {# ── Constrained field: pick an existing value or reveal a box to add a new one.
    Exactly one control is enabled at a time (disabled controls don't submit), so the
    server always gets a single value under `name`. Cuts down on typo'd duplicates
