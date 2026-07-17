@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as m %}
 {% block content %}
 <h1>New Initiative</h1>
 <form class="editform" method="post" action="/api/initiative" style="max-width:820px">
@@ -12,18 +13,23 @@
   <div class="frow">
     <div class="fld"><label>Sponsor</label><input name="sponsor" value="{{ user.name }}"></div>
     <div class="fld"><label>Owner</label><input name="owner" value="{{ user.name }}"></div>
-    <div class="fld"><label>% Complete</label><input type="number" name="pct_complete" min="0" max="100" value="0"></div>
+    <div class="fld"><label>% Complete</label>
+      <div class="pctwrap"><input type="number" name="pct_complete" min="0" max="100" value="0"><span class="pctsign">%</span></div></div>
   </div>
   <div class="frow">
     <div class="fld"><label>Start Date</label><input type="date" name="start_date"></div>
     <div class="fld"><label>Target Completion</label><input type="date" name="target_completion"></div>
-    <div class="fld"><label>Region</label><input name="region"></div>
+    {{ m.pick_or_add('region', '', regions, 'Region') }}
   </div>
   <div class="frow"><div class="fld"><label>Next Action</label><textarea name="next_action" rows="2"></textarea></div></div>
+  <div class="subt" style="margin-top:6px">Financials <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">(enter full dollars, e.g. 100000 = $100,000)</span></div>
   <div class="frow">
-    <div class="fld"><label>Forecast Revenue</label><input name="forecasted_revenue"></div>
-    <div class="fld"><label>Forecast EBITDA</label><input name="forecasted_ebitda"></div>
-    <div class="fld"><label>Forecast Cost</label><input name="forecasted_cost"></div>
+    <div class="fld"><label>Forecast Revenue</label>
+      <div class="moneywrap"><span class="cur">$</span><input class="money" name="forecasted_revenue" inputmode="numeric"></div></div>
+    <div class="fld"><label>Forecast EBITDA</label>
+      <div class="moneywrap"><span class="cur">$</span><input class="money" name="forecasted_ebitda" inputmode="numeric"></div></div>
+    <div class="fld"><label>Forecast Cost</label>
+      <div class="moneywrap"><span class="cur">$</span><input class="money" name="forecasted_cost" inputmode="numeric"></div></div>
   </div>
   <button class="btn primary" type="submit">Create Initiative</button>
   <a class="btn ghost" href="/initiatives">Cancel</a>
