@@ -596,7 +596,31 @@ def tasks_view():
               "overdue": sum(1 for t in mine_records if _overdue(t)),
               "done": _cnt("Completed")}
     tprogress = perf.progress_summary(mine, perf.year_fraction())
-    return render_template("tasks.html", nav="tasks", tasks=mine_records,
+
+    # Leaders manage a team, so group their view by assignee (their own work first,
+    # then each team member) with a per-person read. Members get the flat list.
+    team = None
+    if can_assign:
+        from collections import defaultdict
+        buckets = defaultdict(list)
+        for t in mine_records:
+            buckets[(str(t.get("owner") or "").strip() or "Unassigned")].append(t)
+
+        def _gstats(items):
+            pcts = [(x.get("pct_complete") or 0) for x in items]
+            return {"total": len(items),
+                    "done": sum(1 for x in items if x.get("status") == "Completed"),
+                    "attention": sum(1 for x in items if x.get("status") in ("Behind", "At Risk", "Blocked")),
+                    "overdue": sum(1 for x in items if _overdue(x)),
+                    "avg": round(sum(pcts) / len(pcts)) if pcts else 0}
+
+        mynames = _identity(g.user)
+        team = sorted(
+            ({"member": k, "is_me": k.strip().lower() in mynames,
+              "tasks": v, "stats": _gstats(v)} for k, v in buckets.items()),
+            key=lambda grp: (0 if grp["is_me"] else 1, grp["member"].lower()))
+
+    return render_template("tasks.html", nav="tasks", tasks=mine_records, team=team,
                            task_statuses=TASK_STATUSES, can_assign=can_assign,
                            tstats=tstats, tprogress=tprogress)
 
