@@ -115,6 +115,29 @@ def alert_reason(row):
 
 
 @app.template_global()
+def preview_people():
+    """People you can step into via ?who= (local no-SSO preview only): everyone
+    who owns/created a task, plus everyone in the role config, each with their
+    resolved role. Empty (and never computed) when SSO is on."""
+    if auth.AUTH_ENABLED:
+        return []
+    from data import users as _users
+    names = set()
+    try:
+        _, tasks = _hierarchy()
+        for col in ("owner", "created_by"):
+            if col in tasks.columns:
+                names.update(str(x).strip() for x in tasks[col].dropna().unique())
+    except Exception:
+        pass
+    for u in _users.all_users():
+        names.add(str(u["identifier"]).strip())
+    out = [{"name": n, "role": _users.resolve_role(n) or "Member"}
+           for n in names if n and n.lower() not in ("nan", "none")]
+    return sorted(out, key=lambda x: x["name"].lower())
+
+
+@app.template_global()
 def my_alert_count():
     """Count of things needing THIS user's attention, for the nav badge. SLT: any
     initiative tripping an alert. Leader/Member: their tasks that are overdue or in
