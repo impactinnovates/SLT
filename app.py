@@ -115,6 +115,32 @@ def alert_reason(row):
 
 
 @app.template_global()
+def my_alert_count():
+    """Count of things needing THIS user's attention, for the nav badge. SLT: any
+    initiative tripping an alert. Leader/Member: their tasks that are overdue or in
+    a needs-attention status. Uses the cached frame; fails soft to 0."""
+    from datetime import date as _date
+    u = getattr(g, "user", None)
+    if not u:
+        return 0
+    try:
+        inits, tasks = _hierarchy()
+    except Exception:
+        return 0
+    if u["role"] == "SLT":
+        return int(sum(1 for _, r in inits.iterrows() if rollup.alert_reason(r)))
+    recs = _my_tasks(tasks, u).to_dict("records")
+
+    def _needs(t):
+        if t.get("status") in ("Behind", "At Risk", "Blocked"):
+            return True
+        d = t.get("target_completion")
+        return bool(d and hasattr(d, "year") and d < _date.today()
+                    and t.get("status") != "Completed")
+    return sum(1 for t in recs if _needs(t))
+
+
+@app.template_global()
 def synced_info(item_id):
     """If this initiative's financial fields are driven by the Cost Takeout
     tracker, return {fields, sources, at}; else None. Drives the edit-form lock so

@@ -107,6 +107,10 @@
     .savemsg{font-size:12px;font-weight:700;margin-left:8px;white-space:nowrap;align-self:center}
     .savemsg .ok{color:#2f8f3e}
     .savemsg .err{color:#cc4749}
+    /* nav attention badge */
+    .navbadge{display:inline-block;min-width:17px;height:17px;padding:0 5px;margin-left:6px;
+              border-radius:99px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;
+              line-height:17px;text-align:center;vertical-align:middle}
     /* Leader team view: per-assignee grouping */
     .teamgroup{margin:16px 0}
     .teamhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -169,16 +173,17 @@
     <button class="navtoggle" aria-label="Menu"
             onclick="document.getElementById('navmenu').classList.toggle('open')">&#9776;</button>
     <div class="navmenu" id="navmenu">
+    {% set alerts = my_alert_count() if user else 0 %}
     {% if user and user.role == 'SLT' %}
       <a class="ieg-link {{ 'active' if nav=='dashboard' }}" href="/dashboard">Dashboard</a>
-      <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives</a>
+      <a class="ieg-link {{ 'active' if nav=='initiatives' }}" href="/initiatives">Initiatives{% if alerts %}<span class="navbadge" title="{{ alerts }} initiative{{ 's' if alerts != 1 }} need attention">{{ alerts }}</span>{% endif %}</a>
       <a class="ieg-link {{ 'active' if nav=='financial' }}" href="/financial">Financial Pacing</a>
       <a class="ieg-link {{ 'active' if nav=='timeline' }}" href="/timeline">Timeline</a>
       <a class="ieg-link {{ 'active' if nav=='board' }}" href="/board">Board Report</a>
       <a class="ieg-link {{ 'active' if nav=='sync' }}" href="/sync">Savings Sync</a>
       <a class="ieg-link {{ 'active' if nav=='new' }}" href="/new">+ New</a>
     {% else %}
-      <a class="ieg-link {{ 'active' if nav=='tasks' }}" href="/tasks">My Tasks</a>
+      <a class="ieg-link {{ 'active' if nav=='tasks' }}" href="/tasks">My Tasks{% if alerts %}<span class="navbadge" title="{{ alerts }} task{{ 's' if alerts != 1 }} need attention">{{ alerts }}</span>{% endif %}</a>
     {% endif %}
     {% if is_admin %}<a class="ieg-link {{ 'active' if nav=='admin' }}" href="/admin">&#9881; Admin</a>{% endif %}
     <span class="ieg-spacer"></span>
