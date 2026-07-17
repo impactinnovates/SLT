@@ -46,15 +46,34 @@ DEV_USER = {
 }
 
 # Dev-only role preview: in local (no-SSO) mode, ?as=SLT|Leader|Member switches
-# the dev user's role so you can see each layer. Ignored entirely when SSO is on.
+# the dev user's generic role, and ?who=<name> steps into a specific real person
+# (their resolved role + their identity, so task filtering scopes to THEIR work -
+# the accurate "what does this user actually see" check). Ignored when SSO is on.
 _DEV_ROLES = {"SLT", "Leader", "Member"}
 
 
 def _dev_user():
     from flask import request, session
-    role = request.args.get("as")
-    if role in _DEV_ROLES:
-        session["dev_role"] = role
+    from data import users
+    # ?who and ?as are mutually exclusive preview modes; setting one clears the other.
+    if "who" in request.args:
+        who = request.args.get("who", "").strip()
+        session.pop("dev_role", None)
+        if who:
+            session["dev_who"] = who
+        else:
+            session.pop("dev_who", None)          # who= (empty) resets to self
+    elif request.args.get("as") in _DEV_ROLES:
+        session["dev_role"] = request.args["as"]
+        session.pop("dev_who", None)
+
+    who = session.get("dev_who")
+    if who:
+        # Their real role (unlisted -> Member, exactly as the live app treats them),
+        # and name+email set to `who` so _identity() matches their assigned tasks.
+        role = users.resolve_role(who) or "Member"
+        return {**DEV_USER, "name": who, "email": who, "role": role,
+                "oid": "preview:" + who}
     role = session.get("dev_role", DEV_USER["role"])
     name = DEV_USER["name"] if role == "SLT" else f"Dev {role}"
     return {**DEV_USER, "role": role, "name": name}

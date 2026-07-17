@@ -107,6 +107,10 @@
     .savemsg{font-size:12px;font-weight:700;margin-left:8px;white-space:nowrap;align-self:center}
     .savemsg .ok{color:#2f8f3e}
     .savemsg .err{color:#cc4749}
+    /* preview-as-person picker (local no-SSO only) */
+    .previewsel{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
+                border-radius:6px;font-size:12px;padding:4px 6px;max-width:190px}
+    .previewsel option{color:#111}
     /* nav attention badge */
     .navbadge{display:inline-block;min-width:17px;height:17px;padding:0 5px;margin-left:6px;
               border-radius:99px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;
@@ -190,8 +194,16 @@
     {% if not auth_enabled %}
       <span style="color:rgba(255,255,255,.6);font-size:11px">preview:</span>
       {% for r in ['SLT','Leader','Member'] %}
-        <a class="ieg-link {{ 'active' if user and user.role==r }}" href="/?as={{ r }}"
+        <a class="ieg-link {{ 'active' if user and user.role==r and user.oid != ('preview:' ~ user.name) }}" href="/?as={{ r }}"
            style="padding:5px 8px;font-size:12px">{{ r }}</a>{% endfor %}
+      {% set ppl = preview_people() %}
+      {% if ppl %}
+      <select class="previewsel" title="Step into a specific person's view"
+              onchange="if(this.value)location.href='/?who='+encodeURIComponent(this.value)">
+        <option value="">as person&hellip;</option>
+        {% for p in ppl %}<option value="{{ p.name }}" {{ 'selected' if user and user.oid == ('preview:' ~ p.name) }}>{{ p.name }} ({{ p.role }})</option>{% endfor %}
+      </select>
+      {% endif %}
     {% endif %}
     <a class="ieg-link" href="/refresh" title="Refresh from the List" style="padding:5px 9px;font-size:15px">&#8635;</a>
     <span class="src {{ source_label }}" title="Data source">
