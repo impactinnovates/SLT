@@ -178,18 +178,26 @@
     </div>
 
     {% if user.role == 'SLT' %}
-    <details style="margin-top:8px">
-      <summary class="btn ghost" style="display:inline-block">Edit initiative</summary>
-      {% set lock = synced_info(r.id) %}
-      {# lock is passed in explicitly: a nested macro can't see {% set %} vars from
-         the enclosing macro's scope, so without this param nothing would lock. #}
-      {% macro money(field, label, lock) %}
-        {% set locked = lock and field in lock.fields %}
-        <div class="fld"><label>{{ label }}{% if locked %} <span class="lockicon" title="Synced from the Cost Takeout Tracker">&#128274;</span>{% endif %}</label>
-          <div class="moneywrap"><span class="cur">$</span>
-            <input class="money" name="{{ field }}" inputmode="numeric"
-                   value="{{ r[field]|numval }}"{{ ' readonly' if locked }}></div></div>
-      {% endmacro %}
+    {% set lock = synced_info(r.id) %}
+    {# lock is passed in explicitly: a nested macro can't see {% set %} vars from
+       the enclosing macro's scope, so without this param nothing would lock. #}
+    {% macro money(field, label, lock) %}
+      {% set locked = lock and field in lock.fields %}
+      <div class="fld"><label>{{ label }}{% if locked %} <span class="lockicon" title="Synced from the Cost Takeout Tracker">&#128274;</span>{% endif %}</label>
+        <div class="moneywrap"><span class="cur">$</span>
+          <input class="money" name="{{ field }}" inputmode="numeric"
+                 value="{{ r[field]|numval }}"{{ ' readonly' if locked }}></div></div>
+    {% endmacro %}
+    <button type="button" class="btn ghost" style="margin-top:8px" onclick="openSlideover(this)">Edit initiative</button>
+    {# Slide-over edit panel. The form's HTMX wiring is unchanged (it still swaps the
+       whole .init row on save); when the row is replaced this panel is rebuilt closed,
+       so a successful save auto-dismisses it. See openSlideover/closeSlideover in base. #}
+    <div class="so-panel" role="dialog" aria-modal="true" aria-label="Edit {{ r.name }}">
+      <div class="so-head">
+        <div><h2 style="margin:0;font-size:16px">Edit initiative</h2>
+          <div class="muted" style="margin-top:2px">{{ r.name }}</div></div>
+        <button type="button" class="so-close" onclick="closeSlideover()" aria-label="Close">&times;</button>
+      </div>
       <form class="editform" hx-post="/api/initiative/{{ r.id }}"
             hx-target="closest details.init" hx-swap="outerHTML">
         <input type="hidden" name="sp_id" value="{{ r.sp_id or '' }}">
@@ -258,7 +266,7 @@
                 hx-target="closest details.init" hx-swap="outerHTML"
                 hx-confirm="Delete this initiative? (sponsor-only)">Delete</button>
       </form>
-    </details>
+    </div>
     {% endif %}
   </div>
 </details>
