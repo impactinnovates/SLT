@@ -50,9 +50,7 @@ def _resolve(env_key: str, default: Path) -> Path:
     return p if p.is_absolute() else ROOT / p
 
 
-CSV_PATH             = _resolve("CSV_PATH",             ROOT / "data" / "Strategic_Initiatives_2026.csv")
 EDITS_PATH           = _resolve("EDITS_PATH",           DATA_DIR / "edits.json")
-SUB_INITIATIVES_PATH = _resolve("SUB_INITIATIVES_PATH", DATA_DIR / "sub_initiatives.json")
 # Admin-managed user->role overrides live on PERSISTENT storage (survives deploys),
 # layered over the committed config/roles.yaml seed.
 USER_ROLES_PATH      = _resolve("USER_ROLES_PATH",      DATA_DIR / "user_roles.json")

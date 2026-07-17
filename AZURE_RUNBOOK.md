@@ -19,15 +19,19 @@ the caller's identity to apply the SLT / PM / TM role layers.
 
 ## Data persistence (important)
 
-Runtime edit overlays (`edits.json`, `sub_initiatives.json`) are written to
+The SharePoint List is the system of record; the app holds no local copy of the
+initiative data.
+
+Runtime state that IS written locally (`edits.json`, `user_roles.json`) goes to
 **`/home/site/data`** on Azure - the only location that survives restarts AND
 redeploys. `config/settings.py` does this automatically when `WEBSITE_SITE_NAME`
-is present (i.e. on App Service). The committed `Strategic_Initiatives_2026.csv`
-stays in the code folder as read-only seed data.
+is present (i.e. on App Service).
 
-Once the live List write-back is enabled (`LIST_WRITE_ENABLED=true`), edits go to
-SharePoint and the local overlays are no longer the system of record - but keeping
-them on `/home/site/data` means nothing is lost in the interim.
+With write-back enabled (`LIST_WRITE_ENABLED=true`, the deployed default) edits
+go straight to SharePoint and `edits.json` is unused; it only stages edits if
+write-back is ever turned off. `user_roles.json` is always live - it holds the
+admin-managed role assignments, so losing it would reset everyone to the
+`config/roles.yaml` seed.
 
 ---
 

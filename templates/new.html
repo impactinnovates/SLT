@@ -31,6 +31,6 @@
 <div class="muted" style="margin-top:10px">
   {% if source_label == 'live' and writes %}Saved directly to the SharePoint List.
   {% elif source_label == 'live' %}Staged locally; writes to the List once write-back is enabled.
-  {% else %}Staged in the local overlay (the app is on the CSV export right now).{% endif %}
+  {% else %}Staged in the local overlay (the List connection is not configured).{% endif %}
 </div>
 {% endblock %}

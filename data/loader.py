@@ -1,7 +1,7 @@
 """
 data/loader.py
-Loads initiatives (via data/source.py: live List or local CSV), cleans/types the
-frame, and applies the local edit overlay. Also handles writes.
+Loads initiatives (via data/source.py: the live SharePoint List), cleans/types
+the frame, and applies the local edit overlay. Also handles writes.
 
 Write policy (deliberate and safe):
   - Reads can be live from the SharePoint List as soon as GRAPH_* is configured.
@@ -36,7 +36,7 @@ def last_error():
 
 from config import settings
 from data import source
-from data.models import (CSV_MAP, INTERNAL_TO_GRAPH, TYPE_TASK, TYPE_INITIATIVE,
+from data.models import (INTERNAL_TO_GRAPH, TYPE_TASK, TYPE_INITIATIVE,
                          parse_currency, parse_pct, parse_date)
 
 # In-process cache with a short TTL so a burst of requests doesn't hammer Graph,
@@ -293,22 +293,3 @@ def delete_initiative(item_id: str, sp_id=None) -> bool:
     except Exception:
         return False
 
-
-# ── Sub-initiatives (TM task layer, local JSON) ─────────────────────────────
-def load_sub_initiatives() -> pd.DataFrame:
-    try:
-        p = Path(settings.SUB_INITIATIVES_PATH)
-        if p.exists():
-            return pd.read_json(p)
-    except Exception:
-        pass
-    return pd.DataFrame(columns=[
-        "id", "parent_id", "name", "description", "owner", "status",
-        "pct_complete", "due_date", "created_by", "next_action", "blockers",
-    ])
-
-
-def save_sub_initiatives(df: pd.DataFrame):
-    p = Path(settings.SUB_INITIATIVES_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    df.to_json(p, orient="records", date_format="iso", indent=2)

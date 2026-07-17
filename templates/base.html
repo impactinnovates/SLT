@@ -87,7 +87,7 @@
     .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid transparent}
     .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
     .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
-    .src.csv{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
+    .src.unconfigured{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
     /* HTMX in-flight feedback: dim + lock the element that triggered the request */
     .htmx-request{opacity:.55;pointer-events:none;transition:opacity .1s}
     form.editform.htmx-request{position:relative}
@@ -149,7 +149,7 @@
     {% endif %}
     <a class="ieg-link" href="/refresh" title="Refresh from the List" style="padding:5px 9px;font-size:15px">&#8635;</a>
     <span class="src {{ source_label }}" title="Data source">
-      {{ 'LIVE LIST' if source_label=='live' else 'LOCAL CSV' }}</span>
+      {{ 'LIVE LIST' if source_label=='live' else 'NOT CONFIGURED' }}</span>
     {% if user %}
       <a class="ieg-link" href="/auth/logout" title="{{ user.email }}">{{ user.name }} ({{ user.role }}) &nbsp;Sign out</a>
     {% endif %}

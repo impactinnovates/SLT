@@ -31,3 +31,6 @@ draft_excel_mapping.py
 Thumbs.db
 .vscode/
 .idea/
+
+# One-off operational artifacts (List backups from migration scripts)
+_region_rename_backup.json
