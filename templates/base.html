@@ -88,6 +88,21 @@
     .src{font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px}
     .src.live{background:var(--brand-lime-bg);color:var(--brand-lime-dark);border:1px solid #d4e6a3}
     .src.unconfigured{background:#fff6e2;color:#9a6a00;border:1px solid #f6dfa6}
+    /* money + % inputs: prefix/suffix affordances, locked (synced) styling */
+    .moneywrap{position:relative}
+    .moneywrap .cur{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+    .moneywrap .money{width:100%;padding-left:18px;text-align:right}
+    .pctwrap{position:relative}
+    .pctwrap input{width:100%;padding-right:20px;text-align:right}
+    .pctwrap .pctsign{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+    input[readonly]{background:#eef1f3;color:var(--muted);cursor:not-allowed}
+    .lockicon{font-size:11px;cursor:help}
+    /* constrained pick-or-add field */
+    .pickadd .pa-sel,.pickadd .pa-new{width:100%}
+    .pa-toggle{display:inline-block;margin-top:3px;font-size:11px;color:var(--accent);text-decoration:none;cursor:pointer}
+    /* callout variants for data-quality + synced-lock notes */
+    .callout.warn{border-left-color:#F59E0B;background:#fff7e6}
+    .callout.lock{border-left-color:#64748B;background:#f1f3f5}
     /* HTMX in-flight feedback: dim + lock the element that triggered the request */
     .htmx-request{opacity:.55;pointer-events:none;transition:opacity .1s}
     form.editform.htmx-request{position:relative}
@@ -178,6 +193,47 @@
     }
     document.addEventListener('DOMContentLoaded', function(){ drawCharts(); });
     document.body.addEventListener('htmx:afterSwap', function(e){ drawCharts(e.target); });
+
+    // Money inputs: show thousands separators when not being edited, plain digits
+    // while typing. Server strips commas, so the submitted value stays valid.
+    function fmtMoney(v){
+      var d = String(v).replace(/[^\d]/g,'');
+      return d ? Number(d).toLocaleString('en-US') : '';
+    }
+    function fmtAll(scope){
+      (scope||document).querySelectorAll('input.money').forEach(function(el){
+        el.value = fmtMoney(el.value);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function(){ fmtAll(); });
+    document.body.addEventListener('htmx:afterSwap', function(e){ fmtAll(e.target); });
+    document.body.addEventListener('focusin', function(e){
+      var el = e.target;
+      if(el.classList && el.classList.contains('money') && !el.readOnly)
+        el.value = el.value.replace(/[^\d]/g,'');
+    });
+    document.body.addEventListener('focusout', function(e){
+      var el = e.target;
+      if(el.classList && el.classList.contains('money'))
+        el.value = fmtMoney(el.value);
+    });
+
+    // Pick-or-add: toggle between the existing-values dropdown and a new-value box.
+    // Only the visible control stays enabled, so exactly one value submits.
+    document.body.addEventListener('click', function(e){
+      var t = e.target.closest ? e.target.closest('.pa-toggle') : null;
+      if(!t) return;
+      e.preventDefault();
+      var wrap = t.closest('.pickadd');
+      var sel = wrap.querySelector('.pa-sel'), inp = wrap.querySelector('.pa-new');
+      var toNew = (inp.style.display === 'none' || !inp.style.display);
+      inp.style.display = toNew ? 'block' : 'none';
+      sel.style.display = toNew ? 'none' : 'block';
+      inp.disabled = !toNew; sel.disabled = toNew;
+      inp.value = '';
+      t.textContent = toNew ? 'pick from list' : '+ add new';
+      if(toNew) inp.focus();
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

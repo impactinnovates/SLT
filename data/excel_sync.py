@@ -19,12 +19,14 @@ CLI:
   python -m data.excel_sync --apply --only 118   # write a single id (supervised test)
 """
 import sys
+import json
 import requests
 import yaml
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
+from config import settings
 from data.loader import load_initiatives, clear_cache
 from utils import rollup
 from data.models import INTERNAL_TO_GRAPH
@@ -35,6 +37,45 @@ CONFIG = Path(__file__).parent.parent / "config" / "excel_sync.yaml"
 
 def load_config() -> dict:
     return yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+
+
+# ── Synced-state snapshot ────────────────────────────────────────────────────
+# The edit form must lock a field ONLY when it is genuinely driven by the tracker.
+# The truthful signal is "the last full sync actually wrote this id", so we record
+# that here after every full apply and the app reads it back.
+def _synced_fields(cfg: dict) -> list:
+    """Internal field names the sync owns (realized + budget + %)."""
+    w = cfg["writes"]
+    return [w["realized_field"], w["budget_field"], w["pct_field"]]
+
+
+def _record_synced_state(results: list, cfg: dict):
+    ids = sorted({str(r["id"]) for r in results if r.get("status") == "updated"},
+                 key=lambda s: int(s) if s.isdigit() else 0)
+    state = {
+        "ids": ids,
+        "fields": _synced_fields(cfg),
+        "sources": [s["name"] for s in cfg.get("sources", [])],
+        "at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
+    try:
+        p = Path(settings.SYNCED_STATE_PATH)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    except Exception:
+        pass  # locking is a convenience; never let a write-snapshot failure break the sync
+
+
+def synced_state() -> dict:
+    """What the last full sync touched: {ids, fields, sources, at}. Empty when the
+    sync has never run, so nothing is locked by default."""
+    try:
+        p = Path(settings.SYNCED_STATE_PATH)
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"ids": [], "fields": [], "sources": [], "at": None}
 
 
 def _col(letter: str) -> int:
@@ -145,6 +186,10 @@ def apply_updates(updates: list, cfg: dict, only: str | None = None) -> list:
             results.append({**u, "status": "updated"})
         except Exception as e:
             results.append({**u, "status": f"error: {str(e)[:120]}"})
+    # Snapshot which ids are tracker-driven, but only on a FULL sync - a single-id
+    # supervised test (--only) must not shrink the recorded set to one id.
+    if only is None:
+        _record_synced_state(results, cfg)
     clear_cache()
     return results
 

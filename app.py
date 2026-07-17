@@ -114,6 +114,43 @@ def alert_reason(row):
     return rollup.alert_reason(row)
 
 
+@app.template_global()
+def synced_info(item_id):
+    """If this initiative's financial fields are driven by the Cost Takeout
+    tracker, return {fields, sources, at}; else None. Drives the edit-form lock so
+    a field is locked only when it is TRULY synced from the external file."""
+    from data import excel_sync
+    st = excel_sync.synced_state()
+    if str(item_id) in (st.get("ids") or []):
+        return {"fields": set(st.get("fields") or []),
+                "sources": st.get("sources") or [], "at": st.get("at")}
+    return None
+
+
+@app.template_global()
+def sanity_warnings(r):
+    """Soft data-quality flags shown on the initiative card (never block a save).
+    Catches the kind of inconsistency a form should surface at a glance."""
+    from datetime import date as _date
+    out = []
+    def _d(v):
+        return v if isinstance(v, (date, datetime)) else None
+    start, target = _d(r.get("start_date")), _d(r.get("target_completion"))
+    revised, actual = _d(r.get("revised_completion")), _d(r.get("actual_completion"))
+    status = str(r.get("status") or "")
+    due = revised or target                      # a revised date supersedes the original
+    if start and target and target < start:
+        out.append("Target completion is before the start date.")
+    if due and due < date.today() and status != "Completed" and not actual:
+        out.append("The target date has passed but this isn't marked Completed.")
+    fc, rc = r.get("forecasted_cost"), r.get("realized_cost")
+    if isinstance(fc, (int, float)) and isinstance(rc, (int, float)) and fc and rc > fc:
+        out.append("Realized cost is over the forecast.")
+    if status == "Completed" and (r.get("pct_complete") or 0) < 100:
+        out.append("Marked Completed but % Complete is under 100%.")
+    return out
+
+
 def _distinct(col):
     """Distinct non-empty values of a column, for edit-form datalist suggestions.
     Reads the already-cached frame so it costs nothing extra; only the SLT edit
@@ -588,7 +625,13 @@ def _editable(f) -> dict:
 @app.route("/api/initiative/<item_id>", methods=["POST"])
 @auth.require_role("SLT")
 def api_update(item_id):
-    ok = update_initiative(item_id, _editable(request.form), sp_id=request.form.get("sp_id") or None)
+    fields = _editable(request.form)
+    # Never let a manual save overwrite fields the Cost Takeout tracker owns for a
+    # synced initiative - the form locks them client-side, this is the backstop.
+    locked = synced_info(item_id)
+    if locked:
+        fields = {k: v for k, v in fields.items() if k not in locked["fields"]}
+    ok = update_initiative(item_id, fields, sp_id=request.form.get("sp_id") or None)
     return _row(item_id, error=(None if ok else (last_error() or "Save failed")))
 
 

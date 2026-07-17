@@ -54,6 +54,10 @@ EDITS_PATH           = _resolve("EDITS_PATH",           DATA_DIR / "edits.json")
 # Admin-managed user->role overrides live on PERSISTENT storage (survives deploys),
 # layered over the committed config/roles.yaml seed.
 USER_ROLES_PATH      = _resolve("USER_ROLES_PATH",      DATA_DIR / "user_roles.json")
+# Snapshot of which List IDs the Cost Takeout sync last wrote (+ which fields it
+# owns and when). The edit form reads this to lock the synced fields, so a field
+# is only locked when it is TRULY driven by the external tracker.
+SYNCED_STATE_PATH    = _resolve("SYNCED_STATE_PATH",    DATA_DIR / "synced_state.json")
 
 # ── Microsoft Entra SSO (user sign-in) ──────────────────────────
 ENTRA_CLIENT_ID     = os.getenv("ENTRA_CLIENT_ID", "")
