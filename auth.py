@@ -40,7 +40,7 @@ AUTH_ENABLED = bool(settings.ENTRA_CLIENT_ID)
 # Identity used for local, no-SSO development so every layer is viewable.
 DEV_USER = {
     "name":  "Chad Abrahamson (dev)",
-    "email": "chadlabrahamson@iegna.com",
+    "email": "chad.abrahamson@iegna.com",
     "role":  "SLT",
     "oid":   "local-dev",
 }

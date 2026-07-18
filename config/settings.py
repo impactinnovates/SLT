@@ -69,6 +69,9 @@ USER_EMAILS_PATH     = _resolve("USER_EMAILS_PATH",     DATA_DIR / "user_emails.
 # or shared mailbox UPN); reuses the ENTRA_* app creds. Blank = email off (the
 # nudge is still recorded in-app). Mail.Send app consent required to actually send.
 MAIL_SENDER          = os.getenv("MAIL_SENDER", "").strip()
+# Staff email domain, for deriving an assignee's address (firstname.lastname@domain)
+# as a last resort when the directory/map can't resolve it. Blank disables the guess.
+NOTIFY_EMAIL_DOMAIN  = os.getenv("NOTIFY_EMAIL_DOMAIN", "iegna.com").strip()
 
 # ── Microsoft Entra SSO (user sign-in) ──────────────────────────
 ENTRA_CLIENT_ID     = os.getenv("ENTRA_CLIENT_ID", "")

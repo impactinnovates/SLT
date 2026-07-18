@@ -65,25 +65,41 @@ def remember_email(name: str, email: str):
         _write(settings.USER_EMAILS_PATH, d)
 
 
-def resolve_email(name: str) -> str | None:
-    """Best email for an assignee's display name, or None if it can't be found."""
+def _derive_email(name: str) -> str | None:
+    """Guess firstname.lastname@domain from a display name (last resort). Uses the
+    first and last whitespace tokens, so middle names/initials are dropped."""
+    dom = settings.NOTIFY_EMAIL_DOMAIN
+    parts = [p for p in (name or "").strip().split() if p]
+    if not dom or len(parts) < 2:
+        return None
+    local = f"{parts[0]}.{parts[-1]}".lower()
+    local = "".join(ch for ch in local if ch.isalnum() or ch == ".")
+    return f"{local}@{dom}" if local.count(".") == 1 else None
+
+
+def resolve_email(name: str):
+    """Resolve an assignee's email. Returns (email|None, source) where source is
+    literal | map | directory | derived - so the caller can flag a guessed
+    address. Order: literal address -> learned/override map -> directory lookup
+    -> derived from the name pattern."""
     n = (name or "").strip()
     if not n:
-        return None
+        return None, None
     if "@" in n:                                   # already an address
-        return n
+        return n, "literal"
     hit = _read(settings.USER_EMAILS_PATH).get(n.lower())
     if hit:
-        return hit
+        return hit, "map"
     try:                                           # authoritative: the directory
         from data.graph_client import get_graph_client
         email = get_graph_client().find_user_email(n)
         if email:
             remember_email(n, email)               # cache it for next time
-            return email
+            return email, "directory"
     except Exception:
         pass
-    return None
+    derived = _derive_email(n)                      # last resort: the org pattern
+    return (derived, "derived") if derived else (None, None)
 
 
 # ── pending nudges (shown to the assignee) ──────────────────────────────────
@@ -138,7 +154,7 @@ def notify_assignee(task: dict, kind: str, actor: str, app_url: str = "",
     owner = str(task.get("owner") or "").strip()
     record(task.get("id"), kind, actor, note)
 
-    to = resolve_email(owner)
+    to, source = resolve_email(owner)
     if not to:
         return {"recorded": True, "emailed": False, "to": None,
                 "message": f"Recorded in-app. No email on file for {owner or 'the assignee'} "
@@ -148,6 +164,7 @@ def notify_assignee(task: dict, kind: str, actor: str, app_url: str = "",
     cfg = KINDS[kind]
     res = mailer.send(to, cfg["subject"].format(task=task.get("name", "task")),
                       _html(kind, task, actor, app_url, note))
+    guess = " (best-guess from name)" if source == "derived" else ""
     return {"recorded": True, "emailed": bool(res.get("ok")), "to": to,
-            "message": (f"Emailed {to}." if res.get("ok")
+            "message": (f"Emailed {to}{guess}." if res.get("ok")
                         else f"Recorded in-app; email not sent ({res.get('message')}).")}
