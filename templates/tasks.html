@@ -40,7 +40,7 @@
         &middot; {{ grp.stats.done }} done
       </div>
     </div>
-    {% for t in grp.tasks %}{{ m.my_task_card(t, task_statuses, status_colors, status_icons, can_assign) }}{% endfor %}
+    {% for t in grp.tasks %}{{ m.my_task_card(t, task_statuses, status_colors, status_icons, can_assign, not grp.is_me) }}{% endfor %}
   </div>
   {% endfor %}
 {% else %}

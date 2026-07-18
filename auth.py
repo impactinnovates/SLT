@@ -204,6 +204,14 @@ def callback():
     from data import users
     role = users.resolve_role(name, email) or "Member"
 
+    # Learn this person's name->email so task notifications can reach them even if
+    # the directory lookup is unavailable.
+    try:
+        from data import notify
+        notify.remember_email(name, email)
+    except Exception:
+        pass
+
     next_url = session.pop("next_url", "/")
     session.clear()                       # defeat session fixation (no regenerate in Flask)
     session["user"] = {"name": name, "email": email, "role": role, "oid": oid}

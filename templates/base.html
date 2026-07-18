@@ -103,10 +103,17 @@
     /* callout variants for data-quality + synced-lock notes */
     .callout.warn{border-left-color:#F59E0B;background:#fff7e6}
     .callout.lock{border-left-color:#64748B;background:#f1f3f5}
-    /* task-save confirmation (swapped in beside the Save button) */
-    .savemsg{font-size:12px;font-weight:700;margin-left:8px;white-space:nowrap;align-self:center}
+    /* task-save + notification confirmation (swapped in beside the button) */
+    .savemsg{font-size:12px;font-weight:700;margin-left:8px;white-space:normal;align-self:center}
     .savemsg .ok{color:#2f8f3e}
     .savemsg .err{color:#cc4749}
+    .savemsg .warn2{color:#9a6a00}
+    /* task notification controls */
+    .notifyrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+    .notifyrow .btn{padding:4px 10px;font-size:12px}
+    .tinotify{display:inline-flex;align-items:center;gap:5px;margin-left:8px}
+    .tinotify .btn{padding:3px 8px;font-size:11px}
+    .notifdot{font-size:13px;cursor:help;line-height:1}
     /* preview-as-person picker (local no-SSO only) */
     .previewsel{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
                 border-radius:6px;font-size:12px;padding:4px 6px;max-width:190px}
