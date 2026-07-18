@@ -58,6 +58,20 @@ USER_ROLES_PATH      = _resolve("USER_ROLES_PATH",      DATA_DIR / "user_roles.j
 # owns and when). The edit form reads this to lock the synced fields, so a field
 # is only locked when it is TRULY driven by the external tracker.
 SYNCED_STATE_PATH    = _resolve("SYNCED_STATE_PATH",    DATA_DIR / "synced_state.json")
+# Pending task notifications (release / update-request), keyed by task id, so the
+# assignee sees the nudge in-app even when email is off. Persistent storage.
+NOTIFY_PATH          = _resolve("NOTIFY_PATH",          DATA_DIR / "notifications.json")
+# Learned + override name->email directory (fills as people sign in; edit to fix
+# any that Graph can't resolve). Persistent storage.
+USER_EMAILS_PATH     = _resolve("USER_EMAILS_PATH",     DATA_DIR / "user_emails.json")
+
+# Outbound email (task notifications). MAIL_SENDER = the from-address (a licensed
+# or shared mailbox UPN); reuses the ENTRA_* app creds. Blank = email off (the
+# nudge is still recorded in-app). Mail.Send app consent required to actually send.
+MAIL_SENDER          = os.getenv("MAIL_SENDER", "").strip()
+# Staff email domain, for deriving an assignee's address (firstname.lastname@domain)
+# as a last resort when the directory/map can't resolve it. Blank disables the guess.
+NOTIFY_EMAIL_DOMAIN  = os.getenv("NOTIFY_EMAIL_DOMAIN", "iegna.com").strip()
 
 # ── Microsoft Entra SSO (user sign-in) ──────────────────────────
 ENTRA_CLIENT_ID     = os.getenv("ENTRA_CLIENT_ID", "")

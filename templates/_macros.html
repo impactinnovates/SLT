@@ -61,10 +61,12 @@
 
 
 {# ── One child task line, with inline status/progress update ── #}
-{% macro task_line(t, status_colors, status_icons, task_statuses, editable=true) %}
+{% macro task_line(t, status_colors, status_icons, task_statuses, editable=true, can_notify=false) %}
 {% set c = status_colors.get(t.status, '#94a3b8') %}
+{% set pn = task_notification(t.id) %}
 <div class="taskline" style="border-left-color:{{ c }}">
   <span class="ti">{{ status_icons.get(t.status,'⚪') }} <b>{{ t.name }}</b>
+    {% if pn %}<span class="notifdot" title="{{ 'Update requested' if pn.kind=='update' else 'Released' }} by {{ pn.by }} on {{ pn.at }}">&#128276;</span>{% endif %}
     <span class="muted">· {{ t.owner or 'unassigned' }}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span></span>
   {% if editable %}
   <form class="tinline" hx-post="/api/task/{{ t.id }}"
@@ -75,6 +77,15 @@
     <button class="btn primary" type="submit">Save</button>
     <span class="savemsg" id="tsave-{{ t.id }}"></span>
   </form>
+  {% if can_notify and t.owner %}
+  <span class="tinotify">
+    <form hx-post="/api/task/{{ t.id }}/notify" hx-target="#notif-{{ t.id }}" hx-swap="innerHTML" style="display:inline">
+      <input type="hidden" name="action" value="release"><button class="btn ghost" type="submit" title="Email {{ t.owner }} that this task is released">Release</button></form>
+    <form hx-post="/api/task/{{ t.id }}/notify" hx-target="#notif-{{ t.id }}" hx-swap="innerHTML" style="display:inline">
+      <input type="hidden" name="action" value="update"><button class="btn ghost" type="submit" title="Email {{ t.owner }} to request an update">Request update</button></form>
+    <span class="savemsg" id="notif-{{ t.id }}"></span>
+  </span>
+  {% endif %}
   {% else %}
   <span class="pill" style="background:{{ c }}18;color:{{ c }};border-color:{{ c }}44">{{ t.status }} · {{ (t.pct_complete or 0)|round|int }}%</span>
   {% endif %}
@@ -83,22 +94,40 @@
 
 
 {# ── One of MY tasks (Leader/Member workspace): update form + sub-tasks + add ── #}
-{% macro my_task_card(t, task_statuses, status_colors, status_icons, can_assign=false) %}
+{% macro my_task_card(t, task_statuses, status_colors, status_icons, can_assign=false, can_notify=false) %}
 {% set color = status_colors.get(t.status,'#94a3b8') %}
+{% set pn = task_notification(t.id) %}
 <details class="init" style="border-left-color:{{ color }}">
   <summary>
     <span>{{ status_icons.get(t.status,'⚪') }}</span>
     <span class="nm">{{ t.name }}</span>
+    {% if pn %}<span class="notifdot" title="{{ 'Update requested' if pn.kind=='update' else 'Released' }} by {{ pn.by }}">&#128276;</span>{% endif %}
     {% set shown = (t.effective_pct if (t.task_count and t.task_count > 0) else t.pct_complete) or 0 %}
     <span class="bar"><i style="width:{{ shown|float }}%;background:{{ color }}"></i></span>
     <span class="meta">{{ shown|round|int }}%{% if t.task_count and t.task_count > 0 %} · {{ t.task_count }} sub-task{{ 's' if t.task_count != 1 }}{% endif %}{% if t.target_completion %} · due {{ t.target_completion|date }}{% endif %}</span>
   </summary>
   <div class="body">
+    {% if pn %}
+    <div class="callout warn"><div class="h">{{ 'Update requested' if pn.kind=='update' else 'Released to the assignee' }}</div>
+      by {{ pn.by }} on {{ pn.at }}{% if pn.note %} &mdash; {{ pn.note }}{% endif %}</div>
+    {% endif %}
     <div class="metarow">
       {% if t.parent_name %}<span><b>Part of:</b> {{ t.parent_name }}</span>{% endif %}
       {% if t.owner %}<span><b>Assigned to:</b> {{ t.owner }}</span>{% endif %}
       {% if t.target_completion %}<span><b>Due:</b> {{ t.target_completion|date }}</span>{% endif %}
     </div>
+    {% if can_notify %}
+    <div class="notifyrow">
+      <span class="muted">Notify {{ t.owner or 'assignee' }}:</span>
+      <form hx-post="/api/task/{{ t.id }}/notify" hx-target="#notif-{{ t.id }}" hx-swap="innerHTML" style="display:inline">
+        <input type="hidden" name="action" value="release">
+        <button class="btn ghost" type="submit">Release task</button></form>
+      <form hx-post="/api/task/{{ t.id }}/notify" hx-target="#notif-{{ t.id }}" hx-swap="innerHTML" style="display:inline">
+        <input type="hidden" name="action" value="update">
+        <button class="btn ghost" type="submit">Request update</button></form>
+      <span class="savemsg" id="notif-{{ t.id }}"></span>
+    </div>
+    {% endif %}
     <form class="editform" hx-post="/api/task/{{ t.id }}"
           hx-target="#tsave-{{ t.id }}" hx-swap="innerHTML">
       <div class="frow">
@@ -219,7 +248,7 @@
     {# ── Tasks under this initiative ── #}
     <div class="tasks">
       <div class="subt">Tasks ({{ children|length }})</div>
-      {% for t in children %}{{ task_line(t, status_colors, status_icons, task_statuses) }}{% else %}
+      {% for t in children %}{{ task_line(t, status_colors, status_icons, task_statuses, true, user.role == 'SLT') }}{% else %}
         <div class="muted" style="padding:4px 0">No tasks yet. Break this initiative into trackable tasks below.</div>
       {% endfor %}
       {% if user.role in ('SLT','Leader') %}

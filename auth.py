@@ -40,7 +40,7 @@ AUTH_ENABLED = bool(settings.ENTRA_CLIENT_ID)
 # Identity used for local, no-SSO development so every layer is viewable.
 DEV_USER = {
     "name":  "Chad Abrahamson (dev)",
-    "email": "chadlabrahamson@iegna.com",
+    "email": "chad.abrahamson@iegna.com",
     "role":  "SLT",
     "oid":   "local-dev",
 }
@@ -203,6 +203,14 @@ def callback():
     # Access layer: admin-managed overrides first, then roles.yaml, else Member.
     from data import users
     role = users.resolve_role(name, email) or "Member"
+
+    # Learn this person's name->email so task notifications can reach them even if
+    # the directory lookup is unavailable.
+    try:
+        from data import notify
+        notify.remember_email(name, email)
+    except Exception:
+        pass
 
     next_url = session.pop("next_url", "/")
     session.clear()                       # defeat session fixation (no regenerate in Flask)

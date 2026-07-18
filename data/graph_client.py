@@ -70,6 +70,28 @@ class GraphClient:
         if not r.ok:
             raise GraphError(f"Graph {r.request.method} {r.status_code}: {r.text[:400]}")
 
+    # ── Directory lookup (for notification recipients) ────────────────────
+    def find_user_email(self, display_name: str) -> str | None:
+        """Best email for a display name via the directory, or None. Needs the
+        app to have a directory-read permission (User.Read.All); returns None on
+        any failure (permission, not found) so the caller can fall back."""
+        name = (display_name or "").strip().replace("'", "''")
+        if not name:
+            return None
+        try:
+            url = (f"{GRAPH_BASE}/users?$filter=displayName eq '{name}'"
+                   "&$select=mail,userPrincipalName,displayName&$top=1")
+            r = requests.get(url, headers=self._headers(), timeout=20)
+            if not r.ok:
+                return None
+            vals = r.json().get("value", [])
+            if not vals:
+                return None
+            u = vals[0]
+            return u.get("mail") or u.get("userPrincipalName")
+        except Exception:
+            return None
+
     # ── Site / list resolution (cached per client) ────────────────────────
     def site_id(self) -> str:
         if self._site_id:

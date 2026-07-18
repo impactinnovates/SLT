@@ -115,6 +115,14 @@ def alert_reason(row):
 
 
 @app.template_global()
+def task_notification(task_id):
+    """Pending notification for a task ({kind, by, at, note}) or None - shown as a
+    banner on the assignee's task."""
+    from data import notify
+    return notify.pending(task_id)
+
+
+@app.template_global()
 def preview_people():
     """People you can step into via ?who= (local no-SSO preview only): everyone
     who owns/created a task, plus everyone in the role config, each with their
@@ -826,6 +834,12 @@ def api_task_update(task_id):
               "blockers": request.form.get("blockers", ""),
               "last_updated_by": g.user["name"]}
     ok = update_initiative(task_id, fields, sp_id=(t.get("sp_id") or None))
+    if ok:
+        # The assignee posting an update satisfies any pending "update requested"
+        # nudge, so clear it.
+        if str(t.get("owner", "")).lower() in me:
+            from data import notify
+            notify.clear(task_id)
     # Return a visible confirmation (swapped into the form's save-status span) so a
     # task update never looks like it did nothing - the silent-save failure mode.
     if ok:
@@ -833,6 +847,48 @@ def api_task_update(task_id):
         t12 = f"{(now.hour % 12) or 12}:{now.minute:02d} {'AM' if now.hour < 12 else 'PM'}"
         return f'<span class="ok">&#10003; Saved {t12}</span>'
     return f'<span class="err">&#9888; Not saved: {(last_error() or "try again")}</span>', 200
+
+
+@app.route("/api/task/<task_id>/notify", methods=["POST"])
+def api_task_notify(task_id):
+    """Notify a task's assignee - release it to them, or request an update. Only
+    someone who oversees the task (SLT, or the Leader who owns/created it) may
+    send, and never to yourself."""
+    from data import notify
+    _, tasks = rollup.split_hierarchy(load_initiatives())
+    row = tasks[tasks["id"].astype(str) == str(task_id)]
+    if row.empty:
+        abort(404)
+    t = row.iloc[0]
+    me = _identity(g.user)
+    role = g.user["role"]
+    oversees = (role == "SLT"
+                or (role == "Leader" and str(t.get("created_by", "")).lower() in me))
+    if not oversees:
+        abort(403)
+    if str(t.get("owner", "")).strip().lower() in me:
+        return '<span class="err">That task is assigned to you.</span>', 200
+
+    kind = request.form.get("action", "")
+    if kind not in notify.KINDS:
+        return '<span class="err">Unknown action.</span>', 400
+    # Parent initiative name for the email body (assignees never see initiative
+    # detail in-app, but the name gives the task context).
+    inits, _ = rollup.split_hierarchy(load_initiatives())
+    pname = ""
+    prow = inits[inits["id"].astype(str) == str(t.get("parent_id", ""))]
+    if not prow.empty:
+        pname = prow.iloc[0].get("name", "")
+    task = {"id": task_id, "name": t.get("name", ""), "owner": t.get("owner", ""),
+            "parent_name": pname,
+            "target_completion": (t.get("target_completion").strftime("%b %d, %Y")
+                                  if hasattr(t.get("target_completion"), "strftime") else "")}
+    res = notify.notify_assignee(task, kind, g.user["name"],
+                                 app_url=request.url_root.rstrip("/") + "/tasks",
+                                 note=(request.form.get("note") or "").strip())
+    cls = "ok" if res["emailed"] else "warn2"
+    icon = "&#10003;" if res["emailed"] else "&#128276;"
+    return f'<span class="{cls}">{icon} {res["message"]}</span>'
 
 
 def _row(item_id, error=None):
