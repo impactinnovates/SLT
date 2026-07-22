@@ -11,12 +11,15 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
-from plan_data import PLAN
+from plan_data import PLAN, rollup, TIER_ORDER
 
 CORE  = RGBColor(0x00,0x67,0xB1); EXPAND=RGBColor(0xB8,0x79,0x1F); ENABLE=RGBColor(0x2E,0x7B,0x87)
 INK   = RGBColor(0x1F,0x3A,0x4D); MUTE  = RGBColor(0x5A,0x6B,0x7A); MUTE2=RGBColor(0x6B,0x7B,0x8A)
 LIGHT = RGBColor(0xF1,0xF5,0xF9); WHITE=RGBColor(0xFF,0xFF,0xFF); PANEL=RGBColor(0xF7,0xF9,0xFB)
+LIME  = RGBColor(0x99,0xC2,0x21)
 FONT  = "Segoe UI"
+LOGO  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "ieg-logo.png")
+TIER_NAME = {"Core Play":"CORE PLAYS","Expansion Bet":"EXPANSION BETS","Enabler":"ENABLERS"}
 TIER_COLOR={"Core Play":CORE,"Expansion Bet":EXPAND,"Enabler":ENABLE}
 TIER_LABEL={"Core Play":"TIER A  ·  CORE PLAY","Expansion Bet":"TIER B  ·  EXPANSION BET","Enabler":"TIER C  ·  ENABLER"}
 SW, SH = Inches(13.333), Inches(7.5)
@@ -86,18 +89,29 @@ def _money(v):
 
 # ---------------------------------------------------------------- title
 def title_slide(prs):
-    sl=_blank(prs); _box(sl,0,0,Inches(0.28),SH,fill=CORE)
-    _txt(sl,Inches(0.9),Inches(1.55),Inches(11),Inches(0.5),
+    sl=_blank(prs); r=rollup()
+    try: sl.shapes.add_picture(LOGO, Inches(0.85), Inches(0.55), height=Inches(0.6))
+    except Exception: pass
+    _txt(sl,Inches(0.9),Inches(1.5),Inches(11),Inches(0.4),
          "IEG SALES GROWTH STRATEGY WORKSHOP  ·  JULY 2026",size=13,bold=True,color=CORE)
-    _txt(sl,Inches(0.85),Inches(2.1),Inches(11.6),Inches(1.4),[("The Consolidated Plan",{"size":46,"bold":True,"color":INK})])
-    _txt(sl,Inches(0.9),Inches(3.45),Inches(11.2),Inches(1.0),
-         "Every idea from the six SLT decks, consolidated into 13 initiatives across three tiers, "
-         "with the key decisions and the 90-day and year-one actions to move each one.",size=16,color=MUTE)
-    for k,(lab,col) in enumerate([("3 Core Plays",CORE),("6 Expansion Bets",EXPAND),("4 Enablers",ENABLE)]):
-        x=Inches(0.9+k*3.9); _box(sl,x,Inches(4.85),Inches(3.5),Inches(0.9),fill=col)
-        _txt(sl,x,Inches(4.85),Inches(3.5),Inches(0.9),lab,size=18,bold=True,color=WHITE,align=PP_ALIGN.CENTER,anchor=MSO_ANCHOR.MIDDLE)
-    _txt(sl,Inches(0.9),Inches(6.1),Inches(11.5),Inches(0.5),
-         "Now an actionable plan that populates the SLT Strategic Initiatives tracker (Sponsor / Owner / Task).",size=12,color=MUTE2)
+    _txt(sl,Inches(0.85),Inches(1.92),Inches(11.6),Inches(1.05),[("The Consolidated Plan",{"size":44,"bold":True,"color":INK})])
+    _box(sl,Inches(0.9),Inches(2.98),Inches(1.5),Inches(0.06),fill=LIME)
+    _txt(sl,Inches(0.9),Inches(3.2),Inches(11.4),Inches(0.75),
+         "Every idea from the six SLT decks, consolidated into 13 initiatives across three tiers, with the decisions "
+         "and the 90-day and year-one actions to move each one.",size=15,color=MUTE)
+    cards=[("Core Play",CORE,"the proven consensus"),("Expansion Bet",EXPAND,"bigger bets, to size"),("Enabler",ENABLE,"margin + enabling")]
+    x0=Inches(0.9); cw=Inches(3.7); gap=Inches(0.38); top=Inches(4.3); ch=Inches(1.9)
+    for k,(tier,col,tag) in enumerate(cards):
+        x=Emu(int(x0)+k*(int(cw)+int(gap)))
+        _box(sl,x,top,cw,ch,fill=LIGHT); _box(sl,x,top,cw,Inches(0.48),fill=col)
+        _txt(sl,x,top,cw,Inches(0.48),TIER_NAME[tier],size=13,bold=True,color=WHITE,align=PP_ALIGN.CENTER,anchor=MSO_ANCHOR.MIDDLE)
+        amt=r["by_tier"][tier]; big=f"${amt/1e6:.1f}M" if amt else "TBD"
+        _txt(sl,x,top+Inches(0.62),cw,Inches(0.72),[(big,{"size":38,"bold":True,"color":col})],align=PP_ALIGN.CENTER)
+        _txt(sl,x,top+Inches(1.42),cw,Inches(0.4),f"{r['counts'][tier]} initiatives · {tag}",size=11,color=MUTE2,align=PP_ALIGN.CENTER)
+    _box(sl,Inches(0.9),Inches(6.5),Inches(11.53),Inches(0.55),fill=CORE)
+    _inline(sl,Inches(1.15),Inches(6.5),Inches(11.1),Inches(0.55),
+        [(f"~${r['total']/1e6:.0f}M annual revenue target across the growth plays",{"size":14,"bold":True,"color":WHITE}),
+         ("      M&A sized in diligence  ·  feeds the SLT Strategic Initiatives tracker",{"size":11,"color":RGBColor(0xCF,0xE3,0xF3)})],anchor=MSO_ANCHOR.MIDDLE)
 
 
 # ---------------------------------------------------------------- overview
@@ -119,20 +133,23 @@ def overview_slide(prs,page):
     _txt(sl,Inches(0.5),Inches(0.92),Inches(12.3),Inches(0.5),
          "All six leaders independently prioritized selling deeper into existing customers and growing recurring service. "
          "Core plays first (the consensus), expansion bets second, enablers underneath.",size=11.5,color=MUTE)
+    rr=rollup()
     def band(tier,ytop,cols,ch):
         col=TIER_COLOR[tier]; items=[z for z in PLAN if z["tier"]==tier]
-        _txt(sl,Inches(0.5),ytop,Inches(12),Inches(0.28),TIER_LABEL[tier],size=11,bold=True,color=col)
+        amt=rr["by_tier"][tier]; sub=(f"   ${amt/1e6:.1f}M roll-up" if amt else "   TBD")
+        _inline(sl,Inches(0.5),ytop,Inches(12),Inches(0.28),
+                [(TIER_LABEL[tier],{"size":11,"bold":True,"color":col}),(sub,{"size":11,"bold":True,"color":MUTE2})])
         usable=int(SW)-int(Inches(1.0)); gap=int(Inches(0.14))
         cw=(usable-gap*(cols-1))//cols; x0=int(Inches(0.5)); yy=int(ytop)+int(Inches(0.34))
         for k,i in enumerate(items):
             x=Emu(x0+k*(cw+gap)); _ov_card(sl,x,Emu(yy),Emu(cw),ch,i,col,compact=(cols>=5))
-    band("Core Play",Inches(1.52),3,Inches(0.9))
-    band("Expansion Bet",Inches(2.7),6,Inches(1.0))
-    band("Enabler",Inches(4.0),4,Inches(0.9))
+    band("Core Play",Inches(1.5),3,Inches(0.9))
+    band("Expansion Bet",Inches(2.94),6,Inches(1.0))
+    band("Enabler",Inches(4.46),4,Inches(0.9))
     # consensus strip
-    _box(sl,Inches(0.5),Inches(5.45),Inches(12.33),Inches(1.28),fill=PANEL)
-    _txt(sl,Inches(0.7),Inches(5.56),Inches(12),Inches(0.4),[("Where the whole room agreed",{"size":14,"bold":True,"color":INK})])
-    _txt(sl,Inches(0.7),Inches(5.96),Inches(12),Inches(0.7),
+    _box(sl,Inches(0.5),Inches(5.85),Inches(12.33),Inches(1.1),fill=PANEL)
+    _txt(sl,Inches(0.7),Inches(5.95),Inches(12),Inches(0.4),[("Where the whole room agreed",{"size":14,"bold":True,"color":INK})])
+    _txt(sl,Inches(0.7),Inches(6.33),Inches(12),Inches(0.6),
          "Independently, every leader prioritized Own the Account (attach / cross-sell) and the Service PM channel. The three enablers - "
          "comp redesign, the pricing revamp, and the demand engine - fund and unblock the rest, and start now. M&A is the accelerant, sized in diligence.",
          size=12,color=MUTE,line_spacing=1.1)
