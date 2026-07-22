@@ -137,23 +137,23 @@ PLAN = [
       ("Blow-molded lid share recapture underway (California + OEM conversions)","year",D_Q2),
     ]),
   dict(
-    code="B7", tier="Expansion Bet", priority="3", region="Corp",
-    name="Equipment and Rental Strategy",
+    code="B7", tier="Expansion Bet", priority="2", region="Corp",
+    name="Machine Sales to Referral + Service PM",
     sponsor="Ty Rhoad", owner="Ty Rhoad",
     contributors=["Brian Beth","Joe Stodola"],
-    rev=3_000_000, ebitda=None, target="2027-06-30",
-    kpi="Repeatable-equipment units sold; rental utilization; equipment replacement pipeline (target to size)",
-    desc="Smaller repeatable equipment sales, rentals to shorten the buying decision, replacement cycles, and recombining rentals with service. Reduce dependence on large one-off projects.",
+    rev=2_000_000, ebitda=None, target="2027-06-30",
+    kpi="Machine-sales margin / cash-use analyzed; referral conversion rate; service PM attached per machine (pull-through to A2)",
+    desc="Analyze the current machine-sales book and its true profitability, then convert equipment sales to a REFERRAL model tied to a service PM agreement. Less cash-heavy and easier to manage, with the pull-through benefit of a service contract on every referred machine (feeds A2).",
     decisions=[
-      "Rental model: own fleet vs partner.",
-      "Recombine Rentals and Services (Joe's big idea) or keep separate.",
+      "Which machine lines to convert to a referral sale vs keep in-house, based on the profitability analysis.",
+      "Referral partner terms, and how the attached service PM agreement pulls through to A2.",
     ],
     tasks=[
-      ("Define the smaller-repeatable-equipment target segments + regional distribution partners (Sales)","90d",D_SEP),
-      ("Stand up rental options to shorten the sales decision (Sales / Ops)","90d",D_OCT),
-      ("Fix the equipment-sales pipeline owner gap (MRF / organics has no driver) (Sales)","90d",D_OCT),
-      ("Repeatable-equipment motion producing a steady replacement pipeline","year",D_Q2),
-      ("Rentals + Services recombination decision and plan","year",D_Q1),
+      ("Analyze the current machine-sales book of business and its true profitability / cash use (Finance / Sales)","90d",D_SEP),
+      ("Design the referral model + partner terms, with a service PM agreement attached to each machine (Sales / Service)","90d",D_OCT),
+      ("Pilot a referral sale tied to a PM agreement (Sales)","90d",D_OCT),
+      ("Convert equipment sales to the referral model where the analysis supports it","year",D_Q2),
+      ("Service PM attached on referred machines, pulling through to A2","year",D_Q2),
     ]),
   dict(
     code="B8", tier="Expansion Bet", priority="3", region="UK",
@@ -196,21 +196,23 @@ PLAN = [
   # ============================ TIER C - ENABLERS ============================
   dict(
     code="C10", tier="Enabler", priority="1", region="Corp",
-    name="Sales Force and Comp Redesign",
+    name="Sales Force Strategy and Comp Redesign",
     sponsor="Ty Rhoad", owner="Ty Rhoad",
     contributors=["Chad Abrahamson","Joe Stodola","Paul Reidy","Brian Beth"],
     rev=2_000_000, ebitda=None, target="2026-12-31",
-    kpi="Comp plan live; % of variable tied to recurring/retention; rep selling-time up from 15-20%",
-    desc="Fix coverage (A vs B/C accounts), pair reps with technical experts, arm technicians to sell, and re-weight comp toward recurring, retention, and attach. The make-or-break enabler.",
+    kpi="Coverage model decided (skills vs geography); comp plan live; % of variable tied to recurring/retention; rep selling-time up from 15-20%",
+    desc="Review and revamp the sales team strategy and coverage (including a shift from pure geography back to skills-based), fix A vs B/C coverage, pair reps with technical experts, and re-weight comp toward recurring, retention, and attach. The make-or-break enabler.",
     decisions=[
-      "Comp design: A Re-weight now, then B Overlay, then C Scorecard.",
-      "Coverage model: CX/AI on B/C accounts; paired rep + technical-expert selling.",
+      "Sales team structure: shift back to skills-based coverage vs keep pure geography.",
+      "Comp design sequence: A Re-weight now, then B Overlay, then C Scorecard.",
     ],
     tasks=[
-      ("Adopt Design A (budget-neutral re-weight toward recurring + retention) (CRO / CFO)","90d",D_SEP),
+      ("Review the current sales team strategy and coverage; evaluate a shift from pure geography back to skills-based (CRO)","90d",D_SEP),
+      ("Adopt Comp Design A (budget-neutral re-weight toward recurring + retention) (CRO / CFO)","90d",D_SEP),
       ("Add the equipment-rep attach bonus + a first-year contract-ARR slice (CRO)","90d",D_OCT),
       ("Stand up the paired rep + technical-expert selling model (WM 58 open locations pilot) (Sales / Marketing)","90d",D_OCT),
-      ("Move to Design B overlay as contracts sign; retention as its own quota","year",D_Q1),
+      ("Restructure territories to the chosen coverage model (skills-based where it wins)","year",D_Q1),
+      ("Move to Comp Design B overlay as contracts sign; retention as its own quota","year",D_Q1),
       ("CX / AI covering B/C accounts; rep selling-time up from 15-20%","year",D_Q2),
     ]),
   dict(
@@ -271,15 +273,29 @@ PLAN = [
 ]
 
 
+TIER_ORDER = ["Core Play", "Expansion Bet", "Enabler"]
+
+
+def rollup():
+    """Revenue-target roll-up by tier + grand total (full dollars). Enablers that are
+    margin/cost or sized-later contribute $0 to the revenue roll-up."""
+    by_tier = {t: sum(i["rev"] or 0 for i in PLAN if i["tier"] == t) for t in TIER_ORDER}
+    return dict(by_tier=by_tier, total=sum(by_tier.values()),
+                counts={t: sum(1 for i in PLAN if i["tier"] == t) for t in TIER_ORDER})
+
+
 def summary():
     n_tasks = sum(len(i["tasks"]) for i in PLAN)
-    rev = sum(i["rev"] or 0 for i in PLAN)
-    return dict(initiatives=len(PLAN), tasks=n_tasks, total_forecast_rev=rev)
+    return dict(initiatives=len(PLAN), tasks=n_tasks, **rollup())
 
 
 if __name__ == "__main__":
-    import json
-    print(json.dumps(summary(), indent=2))
+    r = rollup()
+    print(f"initiatives={len(PLAN)}  tasks={sum(len(i['tasks']) for i in PLAN)}")
+    for t in TIER_ORDER:
+        print(f"  {t:15} {r['counts'][t]} initiatives  ->  ${r['by_tier'][t]/1e6:6.2f}M")
+    print(f"  {'TOTAL':15}                 ->  ${r['total']/1e6:6.2f}M revenue target (+ M&A sized in diligence)")
+    print()
     for i in PLAN:
-        print(f"{i['code']:4} {i['name'][:44]:44} {i['sponsor']:16}/{i['owner']:16} "
+        print(f"{i['code']:4} {i['name'][:42]:42} {i['sponsor'].split()[0]:6}/{i['owner'].split()[0]:6} "
               f"${(i['rev'] or 0)/1e6:5.1f}M  {len(i['tasks'])} tasks")
