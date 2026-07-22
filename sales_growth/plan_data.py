@@ -273,6 +273,19 @@ PLAN = [
 ]
 
 
+# M&A Tier-A target slate for the C12 detail (soft-vetted; $ estimates deliberately
+# left out - they were soft scoping runs and get sized in diligence). (Target, Serves, Fit)
+MA_TARGETS = [
+    ("Power Knot", "Organics equipment",
+     "On-site food-waste digesters; recurring consumable ('chip') annuity plus an ozone service tie-in."),
+    ("Apex Filtration", "Absorbents",
+     "Filter-bag / sorbent maker; already our vendor AND customer; feeds the absorbents push."),
+    ("Andela Products", "Glass pulverizers",
+     "Glass-crushing equipment; women-owned (WBE); clean tuck-in with a wear-parts annuity."),
+    ("Cylinders Inc", "Cylinder rebuild (A/B)",
+     "Refuse-specific cylinder rebuilder; scales the Lake Mills reman program."),
+]
+
 TIER_ORDER = ["Core Play", "Expansion Bet", "Enabler"]
 
 
