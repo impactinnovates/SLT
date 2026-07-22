@@ -265,10 +265,12 @@ PLAN = [
       "Sequence the Tier-A targets (Power Knot, Apex, Andela, a cylinder tuck-in).",
     ],
     tasks=[
-      ("Approach the Tier-A slate with the vetting pack (Corp Dev)","90d",D_SEP),
-      ("Prioritize the service roll-ups + chute-mfg targets that plug into A2 and B5 (Corp Dev)","90d",D_OCT),
-      ("LOIs on 2-3 on-strategy targets","year",D_Q1),
-      ("First close(s) adding revenue + EBITDA into the plan","year",D_Q2),
+      ("Approach Power Knot - on-site organics digesters; consumable annuity + ozone tie-in (Corp Dev)","90d",D_SEP),
+      ("Approach Apex Filtration - absorbents; already our vendor and customer; feeds the absorbents push (Corp Dev)","90d",D_SEP),
+      ("Approach Andela Products - glass pulverizers; WBE tuck-in with a wear-parts annuity (Corp Dev)","90d",D_OCT),
+      ("Approach Cylinders Inc - refuse-specific cylinder rebuild; scales the Lake Mills reman program (Corp Dev)","90d",D_OCT),
+      ("LOIs on 2-3 on-strategy targets (Corp Dev)","year",D_Q1),
+      ("First close(s) adding revenue + EBITDA into the plan (Corp Dev)","year",D_Q2),
     ]),
 ]
 
