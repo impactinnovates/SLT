@@ -128,6 +128,8 @@ def build(path):
         ws2.column_dimensions[openpyxl.utils.get_column_letter(j)].width=w
     ws2.freeze_panes="A4"
 
+    wb.properties.creator = "Chad Abrahamson"
+    wb.properties.lastModifiedBy = "Chad Abrahamson"
     try: wb.save(path)
     except PermissionError:
         path=path.replace(".xlsx","_v2.xlsx"); wb.save(path)

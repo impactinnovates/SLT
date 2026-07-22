@@ -265,6 +265,8 @@ def build(path):
         detail_slide(prs,i,page); page+=1
     ma_targets_slide(prs,page); page+=1
     closing_slide(prs,page)
+    prs.core_properties.author = "Chad Abrahamson"
+    prs.core_properties.last_modified_by = "Chad Abrahamson"
     try: prs.save(path)
     except PermissionError:
         path=path.replace(".pptx","_v2.pptx"); prs.save(path)
