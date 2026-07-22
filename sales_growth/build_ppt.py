@@ -11,7 +11,7 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
-from plan_data import PLAN, rollup, TIER_ORDER
+from plan_data import PLAN, rollup, TIER_ORDER, MA_TARGETS
 
 CORE  = RGBColor(0x00,0x67,0xB1); EXPAND=RGBColor(0xB8,0x79,0x1F); ENABLE=RGBColor(0x2E,0x7B,0x87)
 INK   = RGBColor(0x1F,0x3A,0x4D); MUTE  = RGBColor(0x5A,0x6B,0x7A); MUTE2=RGBColor(0x6B,0x7B,0x8A)
@@ -129,7 +129,7 @@ def _ov_card(sl,x,y,w,h,i,col,compact=False):
 
 def overview_slide(prs,page):
     sl=_blank(prs)
-    _txt(sl,Inches(0.5),Inches(0.3),Inches(12),Inches(0.55),[("The plan at a glance",{"size":28,"bold":True,"color":INK})])
+    _txt(sl,Inches(0.5),Inches(0.3),Inches(12),Inches(0.55),[("The plan at a glance",{"size":30,"bold":True,"color":INK})])
     _txt(sl,Inches(0.5),Inches(0.92),Inches(12.3),Inches(0.5),
          "All six leaders independently prioritized selling deeper into existing customers and growing recurring service. "
          "Core plays first (the consensus), expansion bets second, enablers underneath.",size=11.5,color=MUTE)
@@ -162,8 +162,7 @@ def detail_slide(prs,i,page):
     _box(sl,0,0,SW,Inches(1.28),fill=col)
     _txt(sl,Inches(0.5),Inches(0.16),Inches(8),Inches(0.28),TIER_LABEL[i["tier"]],size=11,bold=True,color=WHITE)
     tname=f"{i['code']}   {i['name']}"
-    tsize=21 if len(tname)>42 else 25
-    _txt(sl,Inches(0.5),Inches(0.46),Inches(8.35),Inches(0.75),[(tname,{"size":tsize,"bold":True,"color":WHITE})],line_spacing=0.95)
+    _txt(sl,Inches(0.5),Inches(0.44),Inches(8.5),Inches(0.82),[(tname,{"size":22,"bold":True,"color":WHITE})],line_spacing=0.95)
     money=_money(i["rev"]); chip=(money+" revenue target") if money else "Target sized after 90-day analysis"
     if i["ebitda"]: chip+=f"  ·  {_money(i['ebitda'])} GM/EBITDA"
     _txt(sl,SW-Inches(4.25),Inches(0.2),Inches(3.85),Inches(0.85),chip,size=12,bold=True,color=WHITE,align=PP_ALIGN.RIGHT,anchor=MSO_ANCHOR.TOP)
@@ -198,6 +197,45 @@ def detail_slide(prs,i,page):
     _footer(sl,page)
 
 
+# ---------------------------------------------------------------- M&A grid
+def _cell(cell,text,white=False,bold=False,size=11,color=INK,fill=None):
+    if fill is not None:
+        cell.fill.solid(); cell.fill.fore_color.rgb=fill
+    cell.margin_left=Pt(9); cell.margin_right=Pt(9); cell.margin_top=Pt(5); cell.margin_bottom=Pt(5)
+    cell.vertical_anchor=MSO_ANCHOR.MIDDLE
+    tf=cell.text_frame; tf.word_wrap=True; tf.clear()
+    p=tf.paragraphs[0]; p.line_spacing=1.0
+    r=p.add_run(); r.text=text
+    r.font.size=Pt(size); r.font.bold=bold; r.font.name=FONT
+    r.font.color.rgb=(WHITE if white else color)
+
+
+def ma_targets_slide(prs,page):
+    sl=_blank(prs); col=ENABLE
+    _box(sl,0,0,SW,Inches(1.28),fill=col)
+    _txt(sl,Inches(0.5),Inches(0.16),Inches(8),Inches(0.28),"TIER C  ·  ENABLER  ·  ACCELERATE",size=11,bold=True,color=WHITE)
+    _txt(sl,Inches(0.5),Inches(0.44),Inches(11),Inches(0.82),[("C12   M&A Tier-A Target Slate",{"size":22,"bold":True,"color":WHITE})],line_spacing=0.95)
+    _txt(sl,Inches(0.5),Inches(1.5),Inches(12.3),Inches(0.55),
+         "The on-strategy Tier-A slate that makes the M&A block credible. Soft-vetted (desktop diligence only); "
+         "revenue, EBITDA and EV are deliberately left off here and get sized in diligence.",size=12,color=MUTE,line_spacing=1.05)
+    rows=len(MA_TARGETS)+1
+    tbl=sl.shapes.add_table(rows,3,Inches(0.5),Inches(2.35),Inches(12.33),Inches(3.5)).table
+    tbl.first_row=False; tbl.horz_banding=False
+    tbl.columns[0].width=Inches(2.35); tbl.columns[1].width=Inches(2.45); tbl.columns[2].width=Inches(7.53)
+    for c,h in enumerate(["Target","Serves","Strategic fit"]):
+        _cell(tbl.cell(0,c),h,white=True,bold=True,size=12,fill=INK)
+    tbl.rows[0].height=Inches(0.4)
+    for r,(name,serves,fit) in enumerate(MA_TARGETS,1):
+        _cell(tbl.cell(r,0),name,bold=True,size=13,color=col,fill=(LIGHT if r%2 else WHITE))
+        _cell(tbl.cell(r,1),serves,size=11.5,color=INK,fill=(LIGHT if r%2 else WHITE))
+        _cell(tbl.cell(r,2),fit,size=11.5,color=INK,fill=(LIGHT if r%2 else WHITE))
+        tbl.rows[r].height=Inches(0.72)
+    _txt(sl,Inches(0.5),Inches(6.2),Inches(12.3),Inches(0.5),
+         "We would not buy all of them - this is what makes the M&A block credible, not a shopping list. "
+         "The slate plugs into A2 (service), B5 (chutes) and B9 (reman / absorbents).",size=11,color=MUTE2,line_spacing=1.05)
+    _footer(sl,page)
+
+
 # ---------------------------------------------------------------- closing
 def closing_slide(prs,page):
     sl=_blank(prs); _box(sl,0,0,Inches(0.28),SH,fill=CORE)
@@ -225,6 +263,7 @@ def build(path):
     page=3
     for i in PLAN:
         detail_slide(prs,i,page); page+=1
+    ma_targets_slide(prs,page); page+=1
     closing_slide(prs,page)
     try: prs.save(path)
     except PermissionError:

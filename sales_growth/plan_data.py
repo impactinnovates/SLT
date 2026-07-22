@@ -265,13 +265,28 @@ PLAN = [
       "Sequence the Tier-A targets (Power Knot, Apex, Andela, a cylinder tuck-in).",
     ],
     tasks=[
-      ("Approach the Tier-A slate with the vetting pack (Corp Dev)","90d",D_SEP),
-      ("Prioritize the service roll-ups + chute-mfg targets that plug into A2 and B5 (Corp Dev)","90d",D_OCT),
-      ("LOIs on 2-3 on-strategy targets","year",D_Q1),
-      ("First close(s) adding revenue + EBITDA into the plan","year",D_Q2),
+      ("Approach Power Knot - on-site organics digesters; consumable annuity + ozone tie-in (Corp Dev)","90d",D_SEP),
+      ("Approach Apex Filtration - absorbents; already our vendor and customer; feeds the absorbents push (Corp Dev)","90d",D_SEP),
+      ("Approach Andela Products - glass pulverizers; WBE tuck-in with a wear-parts annuity (Corp Dev)","90d",D_OCT),
+      ("Approach Cylinders Inc - refuse-specific cylinder rebuild; scales the Lake Mills reman program (Corp Dev)","90d",D_OCT),
+      ("LOIs on 2-3 on-strategy targets (Corp Dev)","year",D_Q1),
+      ("First close(s) adding revenue + EBITDA into the plan (Corp Dev)","year",D_Q2),
     ]),
 ]
 
+
+# M&A Tier-A target slate for the C12 detail (soft-vetted; $ estimates deliberately
+# left out - they were soft scoping runs and get sized in diligence). (Target, Serves, Fit)
+MA_TARGETS = [
+    ("Power Knot", "Organics equipment",
+     "On-site food-waste digesters; recurring consumable ('chip') annuity plus an ozone service tie-in."),
+    ("Apex Filtration", "Absorbents",
+     "Filter-bag / sorbent maker; already our vendor AND customer; feeds the absorbents push."),
+    ("Andela Products", "Glass pulverizers",
+     "Glass-crushing equipment; women-owned (WBE); clean tuck-in with a wear-parts annuity."),
+    ("Cylinders Inc", "Cylinder rebuild (A/B)",
+     "Refuse-specific cylinder rebuilder; scales the Lake Mills reman program."),
+]
 
 TIER_ORDER = ["Core Play", "Expansion Bet", "Enabler"]
 
